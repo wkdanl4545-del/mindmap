@@ -117,6 +117,10 @@ input[type=color] { padding: 2px; width: 32px; height: 30px; }
 .mm-node.shape-rect { border-radius: 2px; }
 .mm-node.shape-pill { border-radius: 999px; }
 .mm-node.shape-ellipse { border-radius: 50%; padding: 14px 22px; text-align: center; }
+.mm-node.shape-none {
+  background: transparent !important; border-width: 0 !important; box-shadow: none !important;
+  padding: 2px 4px;
+}
 .mm-node.selected { outline: 3px solid #4a63e7; outline-offset: 2px; }
 .mm-node .mm-text { outline: none; }
 .mm-node .mm-text[contenteditable="true"] { cursor: text; background: rgba(255,255,255,.5); border-radius: 4px; }

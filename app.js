@@ -514,12 +514,23 @@ function render() {
   canvasEl.style.backgroundImage = `radial-gradient(circle, ${theme.dot || '#e2e4ea'} 1px, transparent 1px)`;
   canvasEl.style.backgroundSize = '22px 22px';
 
-  Object.values(App.current.nodes).forEach(n => {
-    if (!n.parentId) return;
-    const parent = getNode(n.parentId);
-    if (parent.collapsed) return;
-    drawLine(linesLayer, parent.x + OFFSET, parent.y + OFFSET, n.x + OFFSET, n.y + OFFSET, n.bg);
-  });
+  if ((App.current.lineStyle || 'elbow') === 'bracket') {
+    Object.values(App.current.nodes).forEach(parent => {
+      if (parent.collapsed) return;
+      const kids = parent.children.filter(id => !isHiddenByCollapse(id)).map(getNode);
+      if (!kids.length) return;
+      bracketSegments(parent, kids).forEach(s => {
+        drawLine(linesLayer, s.x1 + OFFSET, s.y1 + OFFSET, s.x2 + OFFSET, s.y2 + OFFSET, s.color, true);
+      });
+    });
+  } else {
+    Object.values(App.current.nodes).forEach(n => {
+      if (!n.parentId) return;
+      const parent = getNode(n.parentId);
+      if (parent.collapsed) return;
+      drawLine(linesLayer, parent.x + OFFSET, parent.y + OFFSET, n.x + OFFSET, n.y + OFFSET, n.bg);
+    });
+  }
 
   Object.values(App.current.nodes).forEach(n => {
     if (isHiddenByCollapse(n.id)) return;
@@ -553,9 +564,21 @@ function connectorPath(x1, y1, x2, y2) {
   return (App.current.lineStyle === 'curved' ? curvedPath : elbowPath)(x1, y1, x2, y2);
 }
 
-function drawLine(layer, x1, y1, x2, y2, color) {
+function bracketSegments(parent, kids) {
+  const avgDx = kids.reduce((s, k) => s + (k.x - parent.x), 0) / kids.length;
+  const dir = avgDx >= 0 ? 1 : -1;
+  const trunkX = parent.x + dir * 36;
+  const ys = kids.map(k => k.y).concat([parent.y]);
+  const minY = Math.min(...ys), maxY = Math.max(...ys);
+  const segs = [{ x1: parent.x, y1: parent.y, x2: trunkX, y2: parent.y, color: parent.bg }];
+  if (maxY - minY > 0.5) segs.push({ x1: trunkX, y1: minY, x2: trunkX, y2: maxY, color: parent.bg });
+  kids.forEach(k => segs.push({ x1: trunkX, y1: k.y, x2: k.x, y2: k.y, color: k.bg }));
+  return segs;
+}
+
+function drawLine(layer, x1, y1, x2, y2, color, straight) {
   const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-  path.setAttribute('d', connectorPath(x1, y1, x2, y2));
+  path.setAttribute('d', straight ? `M ${x1} ${y1} L ${x2} ${y2}` : connectorPath(x1, y1, x2, y2));
   path.setAttribute('stroke', color || '#999');
   path.setAttribute('stroke-width', '2.5');
   path.setAttribute('fill', 'none');
@@ -579,13 +602,20 @@ function buildNodeEl(n) {
   el.className = `mm-node shape-${n.shape}` + (App.selectedIds.has(n.id) ? ' selected' : '');
   el.style.left = (n.x + OFFSET) + 'px';
   el.style.top = (n.y + OFFSET) + 'px';
-  el.style.background = n.bg || '#ffffff';
-  el.style.color = isDark(n.bg) ? '#fff' : '#1f2330';
+  if (n.shape === 'none') {
+    el.style.background = 'transparent';
+    el.style.borderColor = 'transparent';
+    el.style.borderWidth = '0px';
+    el.style.color = n.bg || '#1f2330';
+  } else {
+    el.style.background = n.bg || '#ffffff';
+    el.style.color = isDark(n.bg) ? '#fff' : '#1f2330';
+    el.style.borderColor = n.borderColor || (n.bg ? 'transparent' : '#c2c5cc');
+    el.style.borderWidth = (n.borderWidth ?? 2) + 'px';
+  }
   el.style.fontWeight = n.bold ? '700' : '400';
   el.style.fontSize = (n.fontSize || 14) + 'px';
   el.style.fontFamily = n.fontFamily || DEFAULT_FONT;
-  el.style.borderColor = n.borderColor || (n.bg ? 'transparent' : '#c2c5cc');
-  el.style.borderWidth = (n.borderWidth ?? 2) + 'px';
   el.dataset.id = n.id;
 
   if (n.image) {
@@ -1318,13 +1348,24 @@ function buildExportSvg() {
   let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">`;
   svg += `<rect width="100%" height="100%" fill="${theme.bg}"/>`;
 
-  nodes.forEach(n => {
-    if (!n.parentId) return;
-    const p = getNode(n.parentId);
-    if (isHiddenByCollapse(p.id)) return;
-    const x1 = p.x - minX, y1 = p.y - minY, x2 = n.x - minX, y2 = n.y - minY;
-    svg += `<path d="${connectorPath(x1, y1, x2, y2)}" stroke="${n.bg || '#999'}" stroke-width="2.5" fill="none" opacity="0.75"/>`;
-  });
+  if ((App.current.lineStyle || 'elbow') === 'bracket') {
+    nodes.forEach(parent => {
+      if (parent.collapsed) return;
+      const kids = parent.children.filter(id => !isHiddenByCollapse(id)).map(getNode);
+      if (!kids.length) return;
+      bracketSegments(parent, kids).forEach(s => {
+        svg += `<path d="M ${s.x1 - minX} ${s.y1 - minY} L ${s.x2 - minX} ${s.y2 - minY}" stroke="${s.color || '#999'}" stroke-width="2.5" fill="none" opacity="0.75"/>`;
+      });
+    });
+  } else {
+    nodes.forEach(n => {
+      if (!n.parentId) return;
+      const p = getNode(n.parentId);
+      if (isHiddenByCollapse(p.id)) return;
+      const x1 = p.x - minX, y1 = p.y - minY, x2 = n.x - minX, y2 = n.y - minY;
+      svg += `<path d="${connectorPath(x1, y1, x2, y2)}" stroke="${n.bg || '#999'}" stroke-width="2.5" fill="none" opacity="0.75"/>`;
+    });
+  }
 
   nodes.forEach(n => {
     const x = n.x - minX, y = n.y - minY;
@@ -1332,13 +1373,17 @@ function buildExportSvg() {
     const label = escapeHtml((n.icon ? n.icon + ' ' : '') + n.text);
     const approxW = Math.max(50, label.length * (n.fontSize||14) * 0.62 + 24);
     const rx = n.shape === 'rect' ? 2 : n.shape === 'pill' || n.shape === 'ellipse' ? 22 : 12;
-    const fill = n.bg || 'none';
-    const stroke = n.borderColor || (n.bg ? 'none' : '#c2c5cc');
-    svg += `<rect x="${x - approxW/2}" y="${y-22}" width="${approxW}" height="44" rx="${rx}" fill="${fill}" stroke="${stroke}" stroke-width="2" />`;
+    const noBox = n.shape === 'none';
+    if (!noBox) {
+      const fill = n.bg || 'none';
+      const stroke = n.borderColor || (n.bg ? 'none' : '#c2c5cc');
+      svg += `<rect x="${x - approxW/2}" y="${y-22}" width="${approxW}" height="44" rx="${rx}" fill="${fill}" stroke="${stroke}" stroke-width="2" />`;
+    }
     const align = n.textAlign || 'center';
     const anchor = align === 'left' ? 'start' : align === 'right' ? 'end' : 'middle';
     const textX = align === 'left' ? x - approxW/2 + 8 : align === 'right' ? x + approxW/2 - 8 : x;
-    svg += `<text x="${textX}" y="${y+5}" font-size="${n.fontSize||14}" font-weight="${n.bold?700:400}" fill="${textColor}" text-anchor="${anchor}" font-family="${(n.fontFamily || DEFAULT_FONT).replace(/'/g, '')}">${label}</text>`;
+    const textFill = noBox ? (n.bg || textColor) : textColor;
+    svg += `<text x="${textX}" y="${y+5}" font-size="${n.fontSize||14}" font-weight="${n.bold?700:400}" fill="${textFill}" text-anchor="${anchor}" font-family="${(n.fontFamily || DEFAULT_FONT).replace(/'/g, '')}">${label}</text>`;
   });
 
   svg += '</svg>';
