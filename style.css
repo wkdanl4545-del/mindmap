@@ -94,6 +94,10 @@ input[type=color] { padding: 2px; width: 32px; height: 30px; }
   background-size: 22px 22px; cursor: grab; touch-action: none;
 }
 #canvas-wrap.panning { cursor: grabbing; }
+#marquee-rect {
+  position: absolute; border: 1.5px dashed #4a63e7; background: rgba(74, 99, 231, .12);
+  pointer-events: none; z-index: 20;
+}
 #lines-layer, #nodes-layer {
   position: absolute; top: 0; left: 0; width: 4000px; height: 4000px;
   transform-origin: 0 0;

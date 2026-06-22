@@ -80,6 +80,7 @@ const App = {
   projects: loadAllProjects(),
   current: null,
   selectedNodeId: null,
+  selectedIds: new Set(),
   history: [],
   future: [],
   pan: { x: 200, y: 600 },
@@ -359,6 +360,36 @@ function deleteNode(nodeId) {
   persistCurrentProject();
 }
 
+function deleteSelectedNodes() {
+  const ids = App.selectedIds.size ? Array.from(App.selectedIds) : (App.selectedNodeId ? [App.selectedNodeId] : []);
+  const targets = ids.filter(id => id !== App.current.rootId && getNode(id));
+  if (!targets.length) {
+    if (ids.includes(App.current.rootId)) alert('중심 주제는 삭제할 수 없습니다.');
+    return;
+  }
+  snapshot();
+  targets.forEach(nodeId => {
+    const node = getNode(nodeId);
+    if (!node) return;
+    const stack = [nodeId];
+    while (stack.length) {
+      const cur = stack.pop();
+      const n = getNode(cur);
+      if (!n) continue;
+      n.children.forEach(c => stack.push(c));
+      delete App.current.nodes[cur];
+    }
+    if (node.parentId && getNode(node.parentId)) {
+      const parent = getNode(node.parentId);
+      parent.children = parent.children.filter(c => c !== nodeId);
+    }
+  });
+  App.selectedIds = new Set([App.current.rootId]);
+  App.selectedNodeId = App.current.rootId;
+  render();
+  persistCurrentProject();
+}
+
 function nodeDepth(id) {
   let d = 0, n = getNode(id);
   while (n.parentId) { d++; n = getNode(n.parentId); }
@@ -534,7 +565,7 @@ function isHiddenByCollapse(id) {
 
 function buildNodeEl(n) {
   const el = document.createElement('div');
-  el.className = `mm-node shape-${n.shape}` + (n.id === App.selectedNodeId ? ' selected' : '');
+  el.className = `mm-node shape-${n.shape}` + (App.selectedIds.has(n.id) ? ' selected' : '');
   el.style.left = (n.x + OFFSET) + 'px';
   el.style.top = (n.y + OFFSET) + 'px';
   el.style.background = n.bg || '#ffffff';
@@ -620,6 +651,7 @@ function screenToCanvas(clientX, clientY) {
 let dragState = null;     // 노드 본체 드래그 (이동 + 다른 노드에 드롭하면 연결)
 let connectState = null;  // 연결 핸들 드래그 (이동 없이 연결선만 긋기)
 let panState = null;
+let marqueeState = null;  // Ctrl+드래그로 여러 노드를 사각형으로 선택
 let longPressTimer = null;
 const activePointers = new Map();
 let pinchState = null;
@@ -629,6 +661,10 @@ function attachNodeEvents(el, id, textEl, handleEl) {
   el.addEventListener('pointerdown', (e) => {
     if (e.target === handleEl) return; // 핸들 자체 리스너가 처리
     e.stopPropagation();
+    if (e.ctrlKey || e.metaKey) {
+      toggleSelectNode(id);
+      return;
+    }
     selectNode(id);
     if (e.target === textEl && textEl.isContentEditable) return;
     el.setPointerCapture && el.setPointerCapture(e.pointerId);
@@ -712,8 +748,27 @@ function focusNodeText(id, selectAll) {
 
 function selectNode(id) {
   App.selectedNodeId = id;
-  document.querySelectorAll('.mm-node').forEach(el => el.classList.toggle('selected', el.dataset.id === id));
+  App.selectedIds = new Set([id]);
+  applySelectionClasses();
   updateToolbarForSelection();
+}
+
+function toggleSelectNode(id) {
+  if (App.selectedIds.has(id)) App.selectedIds.delete(id);
+  else App.selectedIds.add(id);
+  App.selectedNodeId = App.selectedIds.has(id) ? id : (Array.from(App.selectedIds).pop() || null);
+  applySelectionClasses();
+  updateToolbarForSelection();
+}
+
+function clearSelection() {
+  App.selectedNodeId = null;
+  App.selectedIds = new Set();
+  applySelectionClasses();
+}
+
+function applySelectionClasses() {
+  document.querySelectorAll('.mm-node').forEach(el => el.classList.toggle('selected', App.selectedIds.has(el.dataset.id)));
 }
 
 document.addEventListener('pointermove', (e) => {
@@ -753,6 +808,19 @@ document.addEventListener('pointermove', (e) => {
     App.pan.x = panState.origX + (e.clientX - panState.startX);
     App.pan.y = panState.origY + (e.clientY - panState.startY);
     updateZoomTransform();
+    return;
+  }
+  if (marqueeState) {
+    const left = Math.min(e.clientX, marqueeState.startClientX) - marqueeState.wrapRect.left;
+    const top = Math.min(e.clientY, marqueeState.startClientY) - marqueeState.wrapRect.top;
+    const w = Math.abs(e.clientX - marqueeState.startClientX);
+    const h = Math.abs(e.clientY - marqueeState.startClientY);
+    marqueeState.rectEl.style.left = left + 'px';
+    marqueeState.rectEl.style.top = top + 'px';
+    marqueeState.rectEl.style.width = w + 'px';
+    marqueeState.rectEl.style.height = h + 'px';
+    marqueeState.lastClientX = e.clientX;
+    marqueeState.lastClientY = e.clientY;
     return;
   }
   if (activePointers.has(e.pointerId)) {
@@ -803,6 +871,25 @@ document.addEventListener('pointerup', (e) => {
     panState = null;
     document.getElementById('canvas-wrap').classList.remove('panning');
   }
+  if (marqueeState) {
+    const endX = marqueeState.lastClientX ?? marqueeState.startClientX;
+    const endY = marqueeState.lastClientY ?? marqueeState.startClientY;
+    const p1 = screenToCanvas(marqueeState.startClientX, marqueeState.startClientY);
+    const p2 = screenToCanvas(endX, endY);
+    const minX = Math.min(p1.x, p2.x), maxX = Math.max(p1.x, p2.x);
+    const minY = Math.min(p1.y, p2.y), maxY = Math.max(p1.y, p2.y);
+    Object.values(App.current.nodes).forEach(n => {
+      if (isHiddenByCollapse(n.id)) return;
+      if (n.x >= minX && n.x <= maxX && n.y >= minY && n.y <= maxY) {
+        App.selectedIds.add(n.id);
+        App.selectedNodeId = n.id;
+      }
+    });
+    marqueeState.rectEl.remove();
+    marqueeState = null;
+    applySelectionClasses();
+    updateToolbarForSelection();
+  }
 });
 
 document.addEventListener('pointercancel', (e) => {
@@ -816,6 +903,7 @@ document.addEventListener('pointercancel', (e) => {
   }
   connectState = null;
   panState = null;
+  if (marqueeState) { marqueeState.rectEl.remove(); marqueeState = null; }
 });
 
 // 빈 캔버스: 클릭으로 선택 해제 + 패닝 + 우클릭/롱프레스로 새 노드 메뉴
@@ -832,8 +920,16 @@ canvasWrap.addEventListener('pointerdown', (e) => {
     canvasWrap.classList.remove('panning');
     return;
   }
-  App.selectedNodeId = null;
-  document.querySelectorAll('.mm-node').forEach(el => el.classList.remove('selected'));
+  if (e.ctrlKey || e.metaKey) {
+    const wrapRect = canvasWrap.getBoundingClientRect();
+    marqueeState = { startClientX: e.clientX, startClientY: e.clientY, wrapRect };
+    const rectEl = document.createElement('div');
+    rectEl.id = 'marquee-rect';
+    canvasWrap.appendChild(rectEl);
+    marqueeState.rectEl = rectEl;
+    return;
+  }
+  clearSelection();
   panState = { startX: e.clientX, startY: e.clientY, origX: App.pan.x, origY: App.pan.y };
   canvasWrap.classList.add('panning');
   if (e.pointerType === 'touch') {
@@ -966,9 +1062,11 @@ function updateToolbarForSelection() {
 }
 
 function applyToSelected(fn) {
-  if (!App.selectedNodeId || !getNode(App.selectedNodeId)) return;
+  const ids = App.selectedIds.size ? Array.from(App.selectedIds) : (App.selectedNodeId ? [App.selectedNodeId] : []);
+  const valid = ids.filter(id => getNode(id));
+  if (!valid.length) return;
   snapshot();
-  fn(getNode(App.selectedNodeId));
+  valid.forEach(id => fn(getNode(id)));
   render();
   persistCurrentProject();
 }
@@ -1101,7 +1199,7 @@ document.addEventListener('keydown', (e) => {
 
   if (e.key === 'Tab') { e.preventDefault(); addChildNode(App.selectedNodeId); }
   else if (e.key === 'Enter') { e.preventDefault(); addSiblingNode(App.selectedNodeId); }
-  else if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); deleteNode(App.selectedNodeId); }
+  else if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); deleteSelectedNodes(); }
   else if (e.key === 'F2') { e.preventDefault(); focusNodeText(App.selectedNodeId, true); }
   else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); undo(); }
   else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); }
@@ -1111,7 +1209,7 @@ document.addEventListener('keydown', (e) => {
 
 document.getElementById('btn-add-child').addEventListener('click', () => App.selectedNodeId && addChildNode(App.selectedNodeId));
 document.getElementById('btn-add-sibling').addEventListener('click', () => App.selectedNodeId && addSiblingNode(App.selectedNodeId));
-document.getElementById('btn-delete-node').addEventListener('click', () => App.selectedNodeId && deleteNode(App.selectedNodeId));
+document.getElementById('btn-delete-node').addEventListener('click', () => deleteSelectedNodes());
 document.getElementById('btn-undo').addEventListener('click', undo);
 document.getElementById('btn-redo').addEventListener('click', redo);
 document.getElementById('btn-home').addEventListener('click', goHome);
