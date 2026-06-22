@@ -985,6 +985,18 @@ document.getElementById('btn-undo').addEventListener('click', undo);
 document.getElementById('btn-redo').addEventListener('click', redo);
 document.getElementById('btn-home').addEventListener('click', goHome);
 
+document.getElementById('btn-toolbar-more').addEventListener('click', (e) => {
+  e.stopPropagation();
+  document.getElementById('toolbar-extra').classList.toggle('open');
+});
+document.addEventListener('click', (e) => {
+  const extra = document.getElementById('toolbar-extra');
+  const moreBtn = document.getElementById('btn-toolbar-more');
+  if (extra.classList.contains('open') && !extra.contains(e.target) && e.target !== moreBtn) {
+    extra.classList.remove('open');
+  }
+});
+
 document.getElementById('btn-zoom-in').addEventListener('click', () => { App.zoom = Math.min(2.5, App.zoom + 0.1); updateZoomTransform(); });
 document.getElementById('btn-zoom-out').addEventListener('click', () => { App.zoom = Math.max(0.2, App.zoom - 0.1); updateZoomTransform(); });
 document.getElementById('btn-zoom-reset').addEventListener('click', () => { App.zoom = 1; App.pan = { x: window.innerWidth/2, y: window.innerHeight/2 - 40 }; updateZoomTransform(); });
