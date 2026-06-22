@@ -125,7 +125,7 @@ function renderHome() {
     const p = App.projects[id];
     const card = document.createElement('div');
     card.className = 'project-card';
-    const count = Object.keys(p.nodes).length;
+    const count = Object.keys(p.nodes || {}).length;
     card.innerHTML = `<button class="pc-delete" title="삭제">✕</button>
       <div class="pc-title">${escapeHtml(p.name)}</div>
       <div class="pc-meta">노드 ${count}개 · ${p.updatedAt ? new Date(p.updatedAt).toLocaleString() : ''}</div>`;
