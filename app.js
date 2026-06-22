@@ -187,6 +187,32 @@ function persistCurrentProject() {
   pushProjectToCloud(App.projects[App.current.id]);
 }
 
+let toastTimer = null;
+function showToast(message) {
+  const el = document.getElementById('toast');
+  el.textContent = message;
+  el.classList.remove('hidden');
+  requestAnimationFrame(() => el.classList.add('show'));
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    el.classList.remove('show');
+    setTimeout(() => el.classList.add('hidden'), 250);
+  }, 1600);
+}
+
+function saveProjectAs(newName) {
+  if (!App.current) return;
+  const copy = JSON.parse(JSON.stringify(App.current));
+  copy.id = uid();
+  copy.name = newName;
+  copy.updatedAt = Date.now();
+  App.projects[copy.id] = copy;
+  saveAllProjects(App.projects);
+  pushProjectToCloud(copy);
+  openProject(copy.id);
+  showToast(`"${newName}"으로 저장되었습니다`);
+}
+
 function goHome() {
   persistCurrentProject();
   App.current = null;
@@ -1243,6 +1269,17 @@ document.addEventListener('keydown', (e) => {
   const active = document.activeElement;
   if (active && active.isContentEditable) return;
   if (active && (active.tagName === 'INPUT' || active.tagName === 'SELECT')) return;
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+    e.preventDefault();
+    if (e.shiftKey) {
+      const name = prompt('다른 이름으로 저장할 이름을 입력하세요', `${App.current.name} 복사본`);
+      if (name !== null && name.trim()) saveProjectAs(name.trim());
+    } else {
+      persistCurrentProject();
+      showToast('저장되었습니다');
+    }
+    return;
+  }
   if (!App.selectedNodeId) return;
 
   if (e.key === 'Tab') { e.preventDefault(); addChildNode(App.selectedNodeId); }
@@ -1302,6 +1339,17 @@ function downloadFile(filename, content, mime) {
 document.getElementById('btn-export-json').addEventListener('click', () => {
   persistCurrentProject();
   downloadFile(`${App.current.name}.json`, JSON.stringify(App.current, null, 2), 'application/json');
+});
+
+document.getElementById('btn-save').addEventListener('click', () => {
+  persistCurrentProject();
+  showToast('저장되었습니다');
+});
+
+document.getElementById('btn-save-as').addEventListener('click', () => {
+  const name = prompt('다른 이름으로 저장할 이름을 입력하세요', `${App.current.name} 복사본`);
+  if (name === null || !name.trim()) return;
+  saveProjectAs(name.trim());
 });
 
 function importProjectFile(file) {
