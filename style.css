@@ -1,0 +1,174 @@
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0; height: 100%;
+  font-family: "Segoe UI", "Malgun Gothic", sans-serif;
+  background: #f4f5f7; color: #1f2330; overflow: hidden;
+}
+.hidden { display: none !important; }
+.view { width: 100vw; height: 100vh; display: flex; flex-direction: column; }
+
+/* ---------- 로그인 화면 ---------- */
+#login-view { align-items: center; justify-content: center; background: #eef0f5; }
+.login-box {
+  background: #fff; border-radius: 12px; padding: 36px 32px; width: 320px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.12); display: flex; flex-direction: column; gap: 8px;
+}
+.login-box h1 { font-size: 18px; margin: 0 0 14px; text-align: center; }
+.login-box label { font-size: 12px; color: #6b6f7a; margin-top: 8px; }
+.login-box label.login-remember { display: flex; align-items: center; gap: 6px; margin-top: 12px; }
+.login-box label.login-remember input { width: auto; }
+.login-box input { padding: 10px; border: 1px solid #d8dae0; border-radius: 6px; font-size: 14px; }
+.login-submit { margin-top: 16px; padding: 10px; font-size: 14px; }
+.login-error { color: #e0524c; font-size: 12px; margin-top: 6px; }
+
+/* ---------- 홈 화면 ---------- */
+.home-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 24px 40px; background: #fff; border-bottom: 1px solid #e3e5ea;
+}
+.home-header h1 { margin: 0; font-size: 22px; }
+.home-actions { display: flex; gap: 10px; }
+.project-list {
+  flex: 1; overflow-y: auto; padding: 30px 40px;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 18px;
+}
+.project-card {
+  background: #fff; border: 1px solid #e3e5ea; border-radius: 10px; padding: 16px;
+  cursor: pointer; transition: box-shadow .15s, transform .15s; position: relative;
+}
+.project-card:hover { box-shadow: 0 6px 16px rgba(0,0,0,.08); transform: translateY(-2px); }
+.project-card .pc-title { font-weight: 600; font-size: 15px; margin-bottom: 6px; word-break: break-all; }
+.project-card .pc-meta { font-size: 12px; color: #868a96; }
+.project-card .pc-delete {
+  position: absolute; top: 10px; right: 10px; background: none; border: none;
+  cursor: pointer; color: #b3b6c0; font-size: 14px;
+}
+.project-card .pc-delete:hover { color: #e0524c; }
+.empty-hint { color: #9499a6; padding: 40px; text-align: center; grid-column: 1/-1; }
+
+/* ---------- 버튼/공통 ---------- */
+.btn, button, select, input[type=color] {
+  font-size: 13px; padding: 6px 10px; border: 1px solid #d8dae0; border-radius: 6px;
+  background: #fff; cursor: pointer; color: #1f2330;
+}
+button:hover, .btn:hover { background: #eef0f4; }
+.btn.primary, button.primary { background: #4a63e7; color: #fff; border-color: #4a63e7; }
+.btn.primary:hover { background: #3a52d4; }
+input[type=color] { padding: 2px; width: 32px; height: 30px; }
+
+/* ---------- 툴바 ---------- */
+.toolbar {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  background: #fff; border-bottom: 1px solid #e3e5ea; padding: 8px 14px;
+}
+.toolbar-group { display: flex; align-items: center; gap: 6px; }
+.toolbar-right { margin-left: auto; }
+.toolbar-label { font-size: 12px; color: #6b6f7a; margin-right: 2px; }
+.project-name-input {
+  font-size: 15px; font-weight: 600; border: none; background: transparent;
+  padding: 4px 6px; min-width: 140px; border-radius: 6px;
+}
+.project-name-input:focus { background: #f0f1f4; outline: none; }
+.swatches { display: flex; gap: 4px; }
+.swatch {
+  width: 20px; height: 20px; border-radius: 50%; cursor: pointer; border: 2px solid #fff;
+  box-shadow: 0 0 0 1px #d8dae0;
+}
+.swatch.selected { box-shadow: 0 0 0 2px #1f2330; }
+.swatch-none {
+  width: 24px; height: 24px; min-width: 24px; border-radius: 50%; padding: 0;
+  display: flex; align-items: center; justify-content: center; font-size: 13px;
+  color: #e0524c; line-height: 1; background:
+    linear-gradient(to top left, transparent calc(50% - 1px), #e0524c, transparent calc(50% + 1px)),
+    repeating-conic-gradient(#fff 0% 25%, #f1f2f5 0% 50%) 0 0 / 8px 8px;
+}
+.swatch-none.selected { box-shadow: 0 0 0 2px #1f2330; }
+
+/* ---------- 캔버스 ---------- */
+#canvas-wrap {
+  flex: 1; position: relative; overflow: hidden; background: #f8f9fb;
+  background-image: radial-gradient(circle, #e2e4ea 1px, transparent 1px);
+  background-size: 22px 22px; cursor: grab; touch-action: none;
+}
+#canvas-wrap.panning { cursor: grabbing; }
+#lines-layer, #nodes-layer {
+  position: absolute; top: 0; left: 0; width: 4000px; height: 4000px;
+  transform-origin: 0 0;
+}
+#lines-layer { pointer-events: none; overflow: visible; }
+#nodes-layer { pointer-events: none; }
+
+.mm-node {
+  position: absolute; transform: translate(-50%, -50%);
+  padding: 8px 16px; min-width: 40px; max-width: 320px;
+  border: 2px solid transparent; cursor: pointer; pointer-events: all;
+  user-select: none; display: flex; align-items: center; gap: 6px;
+  box-shadow: 0 1px 3px rgba(0,0,0,.15); font-size: 14px; line-height: 1.3;
+  white-space: pre-wrap; word-break: break-word; touch-action: none;
+}
+.mm-node.shape-rounded { border-radius: 12px; }
+.mm-node.shape-rect { border-radius: 2px; }
+.mm-node.shape-pill { border-radius: 999px; }
+.mm-node.shape-ellipse { border-radius: 50%; padding: 14px 22px; text-align: center; }
+.mm-node.selected { outline: 3px solid #4a63e7; outline-offset: 2px; }
+.mm-node .mm-text { outline: none; }
+.mm-node .mm-text[contenteditable="true"] { cursor: text; background: rgba(255,255,255,.5); border-radius: 4px; }
+.mm-node img.mm-thumb { max-width: 60px; max-height: 60px; border-radius: 6px; display: block; }
+.mm-node .mm-icon { font-size: 16px; }
+.mm-collapse-badge {
+  position: absolute; width: 18px; height: 18px; border-radius: 50%; background: #4a63e7;
+  color: #fff; font-size: 10px; display: flex; align-items: center; justify-content: center;
+  pointer-events: all; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,.3);
+}
+
+#zoom-controls {
+  position: absolute; bottom: 16px; right: 16px; display: flex; gap: 6px; align-items: center;
+  background: #fff; border-radius: 8px; padding: 4px 8px; box-shadow: 0 2px 8px rgba(0,0,0,.12);
+}
+#zoom-level { font-size: 12px; width: 40px; text-align: center; }
+
+.popup {
+  position: fixed; background: #fff; border: 1px solid #d8dae0; border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.18); padding: 10px; z-index: 50;
+  display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; max-width: 280px;
+}
+.popup span { cursor: pointer; font-size: 18px; text-align: center; padding: 4px; border-radius: 4px; }
+.popup span:hover { background: #eef0f4; }
+
+/* ---------- 컨텍스트 메뉴 (우클릭/롱프레스) ---------- */
+.context-menu {
+  position: fixed; z-index: 60; background: #fff; border: 1px solid #d8dae0; border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.2); padding: 6px; min-width: 180px;
+}
+.context-menu .cm-item {
+  display: flex; align-items: center; gap: 8px; padding: 9px 12px; border-radius: 6px;
+  font-size: 13px; cursor: pointer; white-space: nowrap;
+}
+.context-menu .cm-item:hover { background: #eef0f4; }
+.context-menu .cm-item.danger { color: #e0524c; }
+.context-menu .cm-sep { height: 1px; background: #ebedf0; margin: 4px 2px; }
+.context-menu .cm-row { display: flex; gap: 4px; padding: 6px 10px; flex-wrap: wrap; }
+
+/* ---------- 노드 연결 핸들 ---------- */
+.mm-node .mm-connect-handle {
+  position: absolute; right: -8px; top: 50%; transform: translateY(-50%);
+  width: 16px; height: 16px; border-radius: 50%; background: #4a63e7; border: 2px solid #fff;
+  cursor: crosshair; pointer-events: all; box-shadow: 0 1px 3px rgba(0,0,0,.3); display: none;
+}
+.mm-node:hover .mm-connect-handle, .mm-node.selected .mm-connect-handle { display: block; }
+.mm-node.connect-target { box-shadow: 0 0 0 3px #2f9e44 !important; }
+
+/* ---------- 모바일 대응 ---------- */
+@media (max-width: 768px) {
+  .toolbar { padding: 6px 8px; gap: 8px; overflow-x: auto; flex-wrap: nowrap; }
+  .toolbar-group { flex-shrink: 0; }
+  .toolbar-label { display: none; }
+  .project-name-input { min-width: 90px; font-size: 13px; }
+  .btn, button, select, input[type=color] { padding: 8px 9px; font-size: 12px; }
+  .mm-node { font-size: 13px; padding: 10px 14px; }
+  .mm-collapse-badge { width: 22px; height: 22px; font-size: 11px; }
+  .mm-node .mm-connect-handle { width: 22px; height: 22px; right: -11px; display: block; }
+  #zoom-controls { bottom: 10px; right: 10px; }
+  .project-list { grid-template-columns: 1fr 1fr; padding: 16px; gap: 12px; }
+  .home-header { padding: 16px 18px; }
+}
