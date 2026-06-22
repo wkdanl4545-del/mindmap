@@ -2,15 +2,29 @@
 
 const STORAGE_KEY = 'mindmap_projects_v1';
 const AUTH_KEY = 'mindmap_auth_v1';
-const AUTH_ID = 'khg2792';
-const AUTH_PW = 'khg2792!!';
+const AUTH_ID = 'wkdtodrls';
+const AUTH_PW = 'gudrb!!';
 
 const THEMES = [
-  { id: 'sunset', name: '선셋', bg: '#f8f9fb', palette: ['#FF6B6B', '#FFA94D', '#FFD43B', '#69DB7C', '#4DABF7', '#9775FA', '#F783AC'] },
-  { id: 'ocean',  name: '오션',  bg: '#f2f7fb', palette: ['#1C7ED6', '#15AABF', '#0CA678', '#5C7CFA', '#228BE6', '#3BC9DB', '#74C0FC'] },
-  { id: 'forest', name: '포레스트', bg: '#f3f8f3', palette: ['#2F9E44', '#66A80F', '#37B24D', '#94D82D', '#0CA678', '#40C057', '#82C91E'] },
-  { id: 'mono',   name: '모노톤', bg: '#f5f5f6', palette: ['#343A40', '#495057', '#868E96', '#ADB5BD', '#5C636E', '#212529', '#6C757D'] },
-  { id: 'candy',  name: '캔디',  bg: '#fdf6fb', palette: ['#E64980', '#BE4BDB', '#F06595', '#CC5DE8', '#FF8787', '#FAA2C1', '#D0BFFF'] },
+  { id: 'sunset',   name: '선셋',     bg: '#f8f9fb', dot: '#e2e4ea', palette: ['#FF6B6B', '#FFA94D', '#FFD43B', '#69DB7C', '#4DABF7', '#9775FA', '#F783AC'] },
+  { id: 'ocean',    name: '오션',     bg: '#f2f7fb', dot: '#cfe6f7', palette: ['#1C7ED6', '#15AABF', '#0CA678', '#5C7CFA', '#228BE6', '#3BC9DB', '#74C0FC'] },
+  { id: 'forest',   name: '포레스트', bg: '#f3f8f3', dot: '#cdeed2', palette: ['#2F9E44', '#66A80F', '#37B24D', '#94D82D', '#0CA678', '#40C057', '#82C91E'] },
+  { id: 'mono',     name: '모노톤',   bg: '#f5f5f6', dot: '#dcdde0', palette: ['#343A40', '#495057', '#868E96', '#ADB5BD', '#5C636E', '#212529', '#6C757D'] },
+  { id: 'candy',    name: '캔디',     bg: '#fdf6fb', dot: '#f3d9ee', palette: ['#E64980', '#BE4BDB', '#F06595', '#CC5DE8', '#FF8787', '#FAA2C1', '#D0BFFF'] },
+  { id: 'berry',    name: '베리',     bg: '#fbf5fb', dot: '#ecd9ec', palette: ['#9C36B5', '#AE3EC9', '#C2255C', '#E64980', '#862E9C', '#A61E4D', '#D6336C'] },
+  { id: 'autumn',   name: '오텀',     bg: '#fff8f0', dot: '#f0ddc4', palette: ['#E8590C', '#D9480F', '#F08C00', '#E67700', '#C92A2A', '#A61E4D', '#FAB005'] },
+  { id: 'mint',     name: '민트',     bg: '#f1fbf8', dot: '#cdeee2', palette: ['#0CA678', '#12B886', '#099268', '#0CA678', '#37B24D', '#2B8A3E', '#66D9C4'] },
+  { id: 'sky',      name: '스카이',   bg: '#f0f8ff', dot: '#cfe6f7', palette: ['#1971C2', '#1C7ED6', '#228BE6', '#4DABF7', '#339AF0', '#15AABF', '#3BC9DB'] },
+  { id: 'rose',     name: '로즈',     bg: '#fff0f3', dot: '#f8d2dc', palette: ['#E03131', '#F03E3E', '#E8590C', '#F76707', '#C2255C', '#E64980', '#FA5252'] },
+  { id: 'lavender', name: '라벤더',   bg: '#f6f3fc', dot: '#ddd0f2', palette: ['#7048E8', '#7950F2', '#9775FA', '#845EF7', '#5F3DC4', '#862E9C', '#B197FC'] },
+  { id: 'citrus',   name: '시트러스', bg: '#fdfbf0', dot: '#f1e9b8', palette: ['#F08C00', '#FAB005', '#E8590C', '#82C91E', '#66A80F', '#FCC419', '#94D82D'] },
+  { id: 'slate',    name: '슬레이트', bg: '#f4f6f8', dot: '#d7dee5', palette: ['#495057', '#4263EB', '#1864AB', '#364FC7', '#1C7ED6', '#343A40', '#5C7CFA'] },
+  { id: 'coral',    name: '코랄',     bg: '#fff5f0', dot: '#fbd9c8', palette: ['#FF6B6B', '#FF8787', '#FFA8A8', '#F08C00', '#E8590C', '#FAB005', '#F76707'] },
+  { id: 'emerald',  name: '에메랄드', bg: '#eefcf3', dot: '#bfe9cf', palette: ['#087F5B', '#0B7285', '#099268', '#2B8A3E', '#066649', '#0CA678', '#12B886'] },
+  { id: 'royal',    name: '로열',     bg: '#f1f0fb', dot: '#cfcbef', palette: ['#3B5BDB', '#5C7CFA', '#7048E8', '#364FC7', '#6741D9', '#1864AB', '#4263EB'] },
+  { id: 'midnight', name: '미드나이트', bg: '#161a25', dot: '#262c3d', palette: ['#4DABF7', '#F783AC', '#FFD43B', '#69DB7C', '#9775FA', '#3BC9DB', '#FF8787'] },
+  { id: 'charcoal', name: '차콜',     bg: '#1f2227', dot: '#2c3036', palette: ['#FFA94D', '#74C0FC', '#B197FC', '#69DB7C', '#FFD43B', '#FF8787', '#66D9C4'] },
+  { id: 'noir',     name: '느와르',   bg: '#0d0d0d', dot: '#262626', palette: ['#FAB005', '#E9ECEF', '#F76707', '#FFD43B', '#ADB5BD', '#E03131', '#FFFFFF'] },
 ];
 
 const ICONS = ['⭐','✅','❗','❓','🔥','💡','📌','🚀','🎯','📅','💬','📎','⚠️','❤️','👍','👎','🔑','🏆','📈','📉','🧩','🛠️','🔍','🎨','📷','💰','⏰','🌟','🚩','✏️'];
@@ -54,7 +68,7 @@ function createNewProject(name) {
         id: rootId, parentId: null, children: [],
         text: name || '중심 주제', x: 0, y: 0,
         bg: '#4a63e7', borderColor: null, borderWidth: 2, shape: 'pill', bold: true, fontSize: 16,
-        fontFamily: DEFAULT_FONT, icon: '', image: null, collapsed: false
+        fontFamily: DEFAULT_FONT, textAlign: 'center', icon: '', image: null, collapsed: false
       }
     }
   };
@@ -159,7 +173,6 @@ function openProject(id) {
   document.getElementById('home-view').classList.add('hidden');
   document.getElementById('editor-view').classList.remove('hidden');
   document.getElementById('project-name').value = App.current.name;
-  document.getElementById('theme-select').value = App.current.theme;
   render();
 }
 
@@ -261,7 +274,7 @@ function makeNode(id, parentId, opts) {
   return Object.assign({
     id, parentId, children: [], text: '새 노드', x: 0, y: 0,
     bg: '#4a63e7', borderColor: null, borderWidth: 2, shape: 'rounded', bold: false, fontSize: 14,
-    fontFamily: DEFAULT_FONT, icon: '', image: null, collapsed: false
+    fontFamily: DEFAULT_FONT, textAlign: 'center', icon: '', image: null, collapsed: false
   }, opts);
 }
 
@@ -463,7 +476,10 @@ function render() {
   linesLayer.innerHTML = '';
 
   const theme = THEMES.find(t => t.id === App.current.theme) || THEMES[0];
-  document.getElementById('canvas-wrap').style.background = theme.bg;
+  const canvasEl = document.getElementById('canvas-wrap');
+  canvasEl.style.backgroundColor = theme.bg;
+  canvasEl.style.backgroundImage = `radial-gradient(circle, ${theme.dot || '#e2e4ea'} 1px, transparent 1px)`;
+  canvasEl.style.backgroundSize = '22px 22px';
 
   Object.values(App.current.nodes).forEach(n => {
     if (!n.parentId) return;
@@ -543,6 +559,8 @@ function buildNodeEl(n) {
   const span = document.createElement('span');
   span.className = 'mm-text';
   span.textContent = n.text;
+  span.style.textAlign = n.textAlign || 'center';
+  span.style.flex = '1';
   el.appendChild(span);
 
   const handle = document.createElement('div');
@@ -941,6 +959,10 @@ function updateToolbarForSelection() {
   document.getElementById('border-custom').value = (n && n.borderColor) || '#000000';
   document.getElementById('border-width-select').value = String((n && n.borderWidth) ?? 2);
   document.getElementById('font-family-select').value = (n && n.fontFamily) || DEFAULT_FONT;
+  const align = (n && n.textAlign) || 'center';
+  document.getElementById('btn-align-left').classList.toggle('selected', align === 'left');
+  document.getElementById('btn-align-center').classList.toggle('selected', align === 'center');
+  document.getElementById('btn-align-right').classList.toggle('selected', align === 'right');
 }
 
 function applyToSelected(fn) {
@@ -981,6 +1003,15 @@ document.getElementById('btn-font-plus').addEventListener('click', () => {
 document.getElementById('btn-font-minus').addEventListener('click', () => {
   applyToSelected(n => n.fontSize = Math.max(10, (n.fontSize||14) - 2));
 });
+document.getElementById('btn-align-left').addEventListener('click', () => {
+  applyToSelected(n => n.textAlign = 'left');
+});
+document.getElementById('btn-align-center').addEventListener('click', () => {
+  applyToSelected(n => n.textAlign = 'center');
+});
+document.getElementById('btn-align-right').addEventListener('click', () => {
+  applyToSelected(n => n.textAlign = 'right');
+});
 
 document.getElementById('btn-icon').addEventListener('click', (e) => {
   const popup = document.getElementById('icon-popup');
@@ -1014,11 +1045,44 @@ document.getElementById('file-image-input').addEventListener('change', (e) => {
   e.target.value = '';
 });
 
-document.getElementById('theme-select').addEventListener('change', (e) => {
-  snapshot();
-  App.current.theme = e.target.value;
-  render();
-  persistCurrentProject();
+document.getElementById('btn-theme').addEventListener('click', (e) => {
+  const popup = document.getElementById('theme-popup');
+  if (!popup.classList.contains('hidden')) { popup.classList.add('hidden'); return; }
+  popup.innerHTML = '';
+  THEMES.forEach(t => {
+    const card = document.createElement('div');
+    card.className = 'theme-card' + (App.current.theme === t.id ? ' selected' : '');
+    const swatch = document.createElement('div');
+    swatch.className = 'tc-swatch';
+    swatch.style.background = t.bg;
+    t.palette.slice(0, 5).forEach(c => {
+      const dot = document.createElement('div');
+      dot.className = 'tc-dot';
+      dot.style.background = c;
+      swatch.appendChild(dot);
+    });
+    const name = document.createElement('div');
+    name.className = 'tc-name';
+    name.textContent = t.name;
+    card.appendChild(swatch);
+    card.appendChild(name);
+    card.addEventListener('click', () => {
+      snapshot();
+      App.current.theme = t.id;
+      render();
+      persistCurrentProject();
+      popup.classList.add('hidden');
+    });
+    popup.appendChild(card);
+  });
+  const rect = e.target.closest('button').getBoundingClientRect();
+  popup.style.left = Math.min(rect.left, window.innerWidth - 300) + 'px';
+  popup.style.top = (rect.bottom + 6) + 'px';
+  popup.classList.remove('hidden');
+});
+document.addEventListener('click', (e) => {
+  const popup = document.getElementById('theme-popup');
+  if (!popup.contains(e.target) && e.target.id !== 'btn-theme') popup.classList.add('hidden');
 });
 
 document.getElementById('project-name').addEventListener('input', (e) => {
@@ -1155,7 +1219,10 @@ function buildExportSvg() {
     const fill = n.bg || 'none';
     const stroke = n.borderColor || (n.bg ? 'none' : '#c2c5cc');
     svg += `<rect x="${x - approxW/2}" y="${y-22}" width="${approxW}" height="44" rx="${rx}" fill="${fill}" stroke="${stroke}" stroke-width="2" />`;
-    svg += `<text x="${x}" y="${y+5}" font-size="${n.fontSize||14}" font-weight="${n.bold?700:400}" fill="${textColor}" text-anchor="middle" font-family="${(n.fontFamily || DEFAULT_FONT).replace(/'/g, '')}">${label}</text>`;
+    const align = n.textAlign || 'center';
+    const anchor = align === 'left' ? 'start' : align === 'right' ? 'end' : 'middle';
+    const textX = align === 'left' ? x - approxW/2 + 8 : align === 'right' ? x + approxW/2 - 8 : x;
+    svg += `<text x="${textX}" y="${y+5}" font-size="${n.fontSize||14}" font-weight="${n.bold?700:400}" fill="${textColor}" text-anchor="${anchor}" font-family="${(n.fontFamily || DEFAULT_FONT).replace(/'/g, '')}">${label}</text>`;
   });
 
   svg += '</svg>';
@@ -1229,16 +1296,6 @@ function checkShareHash() {
 
 // ===================== 초기화 =====================
 
-function initThemeSelect() {
-  const sel = document.getElementById('theme-select');
-  sel.innerHTML = '';
-  THEMES.forEach(t => {
-    const opt = document.createElement('option');
-    opt.value = t.id; opt.textContent = t.name;
-    sel.appendChild(opt);
-  });
-}
-
 window.addEventListener('beforeunload', () => { if (App.current) persistCurrentProject(); });
 setInterval(() => { if (App.current) persistCurrentProject(); }, 8000);
 
@@ -1247,8 +1304,6 @@ function afterAuth() {
   if (location.hash.startsWith('#share=')) checkShareHash();
   else renderHome();
 }
-
-initThemeSelect();
 
 if (!isAuthed()) showLogin();
 else afterAuth();

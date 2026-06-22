@@ -54,6 +54,9 @@ html, body {
 button:hover, .btn:hover { background: #eef0f4; }
 .btn.primary, button.primary { background: #4a63e7; color: #fff; border-color: #4a63e7; }
 .btn.primary:hover { background: #3a52d4; }
+#btn-align-left.selected, #btn-align-center.selected, #btn-align-right.selected {
+  background: #4a63e7; color: #fff; border-color: #4a63e7;
+}
 input[type=color] { padding: 2px; width: 32px; height: 30px; }
 
 /* ---------- 툴바 ---------- */
@@ -135,6 +138,21 @@ input[type=color] { padding: 2px; width: 32px; height: 30px; }
 .popup span { cursor: pointer; font-size: 18px; text-align: center; padding: 4px; border-radius: 4px; }
 .popup span:hover { background: #eef0f4; }
 
+/* ---------- 테마 갤러리 팝업 ---------- */
+.theme-popup { grid-template-columns: repeat(3, 1fr); width: 280px; max-height: 70vh; overflow-y: auto; gap: 8px; }
+.theme-card {
+  cursor: pointer; border: 2px solid transparent; border-radius: 8px; padding: 6px 4px 5px;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+}
+.theme-card:hover { background: #eef0f4; }
+.theme-card.selected { border-color: #1f2330; }
+.theme-card .tc-swatch {
+  width: 100%; height: 32px; border-radius: 6px; display: flex; align-items: center;
+  justify-content: center; gap: 2px; border: 1px solid rgba(0,0,0,.06);
+}
+.theme-card .tc-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.theme-card .tc-name { font-size: 11px; color: #4b4f59; }
+
 /* ---------- 컨텍스트 메뉴 (우클릭/롱프레스) ---------- */
 .context-menu {
   position: fixed; z-index: 60; background: #fff; border: 1px solid #d8dae0; border-radius: 8px;
@@ -160,9 +178,12 @@ input[type=color] { padding: 2px; width: 32px; height: 30px; }
 
 /* ---------- 모바일 대응 ---------- */
 @media (max-width: 768px) {
-  .toolbar-main { padding: 6px 8px; gap: 8px; overflow-x: auto; flex-wrap: nowrap; }
-  .toolbar-main .toolbar-group { flex-shrink: 0; }
-  #btn-toolbar-more { display: inline-flex; flex-shrink: 0; }
+  .toolbar-main { padding: 5px 6px; gap: 4px; flex-wrap: wrap; row-gap: 4px; }
+  .toolbar-main .toolbar-group { flex-shrink: 0; gap: 3px; }
+  .toolbar-main .btn-label { display: none; }
+  .toolbar-main button, .toolbar-main .btn { padding: 6px 8px; font-size: 14px; min-width: 30px; }
+  .toolbar-main .project-name-input { padding: 6px 6px; }
+  #btn-toolbar-more { display: inline-flex; flex-shrink: 0; margin-left: auto; }
   .toolbar-extra {
     display: none; position: absolute; top: 100%; left: 0; right: 0; z-index: 45;
     background: #fff; border-bottom: 1px solid #e3e5ea; box-shadow: 0 10px 20px rgba(0,0,0,.12);
@@ -173,7 +194,7 @@ input[type=color] { padding: 2px; width: 32px; height: 30px; }
   .toolbar-extra .toolbar-group { flex-wrap: wrap; }
   .toolbar-extra .toolbar-right { margin-left: 0; }
   .toolbar-label { display: inline; }
-  .project-name-input { min-width: 90px; font-size: 13px; }
+  .project-name-input { min-width: 80px; font-size: 13px; }
   .btn, button, select, input[type=color] { padding: 8px 9px; font-size: 12px; }
   .mm-node { font-size: 13px; padding: 10px 14px; }
   .mm-collapse-badge { width: 22px; height: 22px; font-size: 11px; }
@@ -183,9 +204,16 @@ input[type=color] { padding: 2px; width: 32px; height: 30px; }
   .home-header { padding: 16px 18px; }
 }
 
-/* 모바일 가로(landscape) 모드: 세로 공간이 좁으므로 더보기 패널을 가로로 펼침 */
-@media (max-width: 900px) and (orientation: landscape) {
-  .toolbar-main { padding: 4px 8px; }
-  .toolbar-extra.open { flex-direction: row; flex-wrap: wrap; max-height: 50vh; }
-  #zoom-controls { bottom: 6px; right: 6px; padding: 2px 6px; }
+/* 모바일 가로(landscape) 모드: 세로 공간이 매우 좁으므로 툴바를 최대한 압축 */
+@media (max-width: 1000px) and (orientation: landscape) {
+  .toolbar-main { padding: 2px 6px; gap: 3px; }
+  .toolbar-main button, .toolbar-main .btn { padding: 3px 5px; font-size: 11px; min-width: 24px; }
+  .toolbar-main .project-name-input { font-size: 11px; min-width: 60px; padding: 2px 4px; }
+  .toolbar-extra.open { flex-direction: row; flex-wrap: wrap; max-height: 40vh; gap: 6px; padding: 6px 8px; }
+  .toolbar-extra button, .toolbar-extra .btn, .toolbar-extra select, .toolbar-extra input[type=color] {
+    padding: 4px 6px; font-size: 11px;
+  }
+  .toolbar-extra .toolbar-group { gap: 3px; }
+  #zoom-controls { bottom: 4px; right: 4px; padding: 1px 4px; }
+  #zoom-controls button { padding: 2px 6px; font-size: 11px; }
 }
