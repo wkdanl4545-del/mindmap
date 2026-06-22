@@ -17,6 +17,15 @@ const ICONS = ['⭐','✅','❗','❓','🔥','💡','📌','🚀','🎯','📅'
 
 const DEFAULT_FONT = "'Segoe UI', 'Malgun Gothic', sans-serif";
 
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDSm06kUiCfX1KDIMSLOCszp6z0Zn_XmtY",
+  authDomain: "mindmap-50e9e.firebaseapp.com",
+  projectId: "mindmap-50e9e",
+  storageBucket: "mindmap-50e9e.firebasestorage.app",
+  messagingSenderId: "743505245659",
+  appId: "1:743505245659:web:37edc72064bac51edb63fe"
+};
+
 function uid() { return 'n' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36); }
 
 // ===================== 영속성 =====================
@@ -94,6 +103,8 @@ document.getElementById('btn-logout').addEventListener('click', () => {
   if (!confirm('로그아웃 하시겠습니까?')) return;
   localStorage.removeItem(AUTH_KEY);
   sessionStorage.removeItem(AUTH_KEY);
+  if (cloudUnsub) { cloudUnsub(); cloudUnsub = null; }
+  cloudReady = false;
   showLogin();
 });
 
@@ -127,6 +138,7 @@ function renderHome() {
       if (confirm(`"${p.name}" 프로젝트를 삭제할까요?`)) {
         delete App.projects[id];
         saveAllProjects(App.projects);
+        deleteProjectFromCloud(id);
         renderHome();
       }
     });
@@ -156,12 +168,67 @@ function persistCurrentProject() {
   App.current.updatedAt = Date.now();
   App.projects[App.current.id] = JSON.parse(JSON.stringify(App.current));
   saveAllProjects(App.projects);
+  pushProjectToCloud(App.projects[App.current.id]);
 }
 
 function goHome() {
   persistCurrentProject();
   App.current = null;
   renderHome();
+}
+
+// ===================== 클라우드 동기화 (Firebase Firestore) =====================
+
+let cloudReady = false;
+let cloudDb = null;
+let cloudUnsub = null;
+
+function cloudCollectionRef() {
+  return cloudDb.collection('mindmap_data').doc(AUTH_ID).collection('projects');
+}
+
+function initCloudSync() {
+  if (typeof firebase === 'undefined') return;
+  try {
+    if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
+    firebase.auth().signInAnonymously().then(() => {
+      cloudDb = firebase.firestore();
+      cloudReady = true;
+      if (cloudUnsub) cloudUnsub();
+      cloudUnsub = cloudCollectionRef().onSnapshot((snap) => {
+        let changed = false;
+        snap.docChanges().forEach(change => {
+          const id = change.doc.id;
+          if (change.type === 'removed') {
+            if (App.projects[id]) { delete App.projects[id]; changed = true; }
+            return;
+          }
+          const remote = change.doc.data();
+          const local = App.projects[id];
+          if (!local || (remote.updatedAt || 0) > (local.updatedAt || 0)) {
+            App.projects[id] = remote;
+            if (!App.current || App.current.id !== id) changed = true;
+          }
+        });
+        if (changed) {
+          saveAllProjects(App.projects);
+          if (!App.current) renderHome();
+        }
+      }, (err) => console.error('동기화 수신 오류', err));
+    }).catch(err => console.error('Firebase 익명 로그인 실패', err));
+  } catch (err) {
+    console.error('Firebase 초기화 실패', err);
+  }
+}
+
+function pushProjectToCloud(project) {
+  if (!cloudReady || !project) return;
+  cloudCollectionRef().doc(project.id).set(project).catch(err => console.error('클라우드 저장 실패', err));
+}
+
+function deleteProjectFromCloud(id) {
+  if (!cloudReady) return;
+  cloudCollectionRef().doc(id).delete().catch(err => console.error('클라우드 삭제 실패', err));
 }
 
 // ===================== Undo/Redo =====================
@@ -1007,6 +1074,7 @@ document.getElementById('btn-new-project').addEventListener('click', () => {
   const p = createNewProject(name);
   App.projects[p.id] = p;
   saveAllProjects(App.projects);
+  pushProjectToCloud(p);
   openProject(p.id);
 });
 
@@ -1036,6 +1104,7 @@ function importProjectFile(file) {
       data.updatedAt = Date.now();
       App.projects[data.id] = data;
       saveAllProjects(App.projects);
+      pushProjectToCloud(data);
       openProject(data.id);
     } catch (err) {
       alert('파일을 불러오는 중 오류가 발생했습니다: ' + err.message);
@@ -1174,6 +1243,7 @@ window.addEventListener('beforeunload', () => { if (App.current) persistCurrentP
 setInterval(() => { if (App.current) persistCurrentProject(); }, 8000);
 
 function afterAuth() {
+  initCloudSync();
   if (location.hash.startsWith('#share=')) checkShareHash();
   else renderHome();
 }
