@@ -61,6 +61,7 @@ function createNewProject(name) {
     id: uid(),
     name: name || '새 마인드맵',
     theme: 'sunset',
+    lineStyle: 'elbow',
     rootId,
     updatedAt: Date.now(),
     nodes: {
@@ -174,6 +175,7 @@ function openProject(id) {
   document.getElementById('home-view').classList.add('hidden');
   document.getElementById('editor-view').classList.remove('hidden');
   document.getElementById('project-name').value = App.current.name;
+  document.getElementById('line-style-select').value = App.current.lineStyle || 'elbow';
   render();
 }
 
@@ -542,9 +544,18 @@ function elbowPath(x1, y1, x2, y2) {
     `L ${midX} ${botY} Q ${midX} ${y2} ${bend2X} ${y2} L ${x2} ${y2}`;
 }
 
+function curvedPath(x1, y1, x2, y2) {
+  const mx = x1 + (x2 - x1) / 2;
+  return `M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`;
+}
+
+function connectorPath(x1, y1, x2, y2) {
+  return (App.current.lineStyle === 'curved' ? curvedPath : elbowPath)(x1, y1, x2, y2);
+}
+
 function drawLine(layer, x1, y1, x2, y2, color) {
   const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-  path.setAttribute('d', elbowPath(x1, y1, x2, y2));
+  path.setAttribute('d', connectorPath(x1, y1, x2, y2));
   path.setAttribute('stroke', color || '#999');
   path.setAttribute('stroke-width', '2.5');
   path.setAttribute('fill', 'none');
@@ -797,7 +808,7 @@ document.addEventListener('pointermove', (e) => {
       layer.setAttribute('fill', 'none');
       document.getElementById('lines-layer').appendChild(layer);
     }
-    layer.setAttribute('d', elbowPath(connectState.fromX + OFFSET, connectState.fromY + OFFSET, p.x + OFFSET, p.y + OFFSET));
+    layer.setAttribute('d', connectorPath(connectState.fromX + OFFSET, connectState.fromY + OFFSET, p.x + OFFSET, p.y + OFFSET));
     document.querySelectorAll('.mm-node.connect-target').forEach(el => el.classList.remove('connect-target'));
     const target = document.elementFromPoint(e.clientX, e.clientY);
     const targetEl = target && target.closest && target.closest('.mm-node');
@@ -1188,6 +1199,13 @@ document.getElementById('project-name').addEventListener('input', (e) => {
 });
 document.getElementById('project-name').addEventListener('blur', persistCurrentProject);
 
+document.getElementById('line-style-select').addEventListener('change', (e) => {
+  snapshot();
+  App.current.lineStyle = e.target.value;
+  render();
+  persistCurrentProject();
+});
+
 // ===================== 키보드 단축키 =====================
 
 document.addEventListener('keydown', (e) => {
@@ -1305,7 +1323,7 @@ function buildExportSvg() {
     const p = getNode(n.parentId);
     if (isHiddenByCollapse(p.id)) return;
     const x1 = p.x - minX, y1 = p.y - minY, x2 = n.x - minX, y2 = n.y - minY;
-    svg += `<path d="${elbowPath(x1, y1, x2, y2)}" stroke="${n.bg || '#999'}" stroke-width="2.5" fill="none" opacity="0.75"/>`;
+    svg += `<path d="${connectorPath(x1, y1, x2, y2)}" stroke="${n.bg || '#999'}" stroke-width="2.5" fill="none" opacity="0.75"/>`;
   });
 
   nodes.forEach(n => {
