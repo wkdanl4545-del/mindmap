@@ -33,12 +33,14 @@
   <header class="home-header">
     <h1>마인드맵</h1>
     <div class="home-actions">
+      <button id="btn-new-folder">📁 새 폴더</button>
       <button id="btn-new-project" class="btn primary">+ 새 프로젝트</button>
       <label class="btn" for="file-import-home">파일에서 열기</label>
       <input type="file" id="file-import-home" accept=".json,application/json" hidden>
       <button id="btn-logout" title="로그아웃">로그아웃</button>
     </div>
   </header>
+  <div id="folder-breadcrumb" class="breadcrumb"></div>
   <div id="project-list" class="project-list"></div>
 </div>
 

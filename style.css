@@ -47,7 +47,37 @@ html, body {
   cursor: pointer; color: #b3b6c0; font-size: 14px;
 }
 .project-card .pc-delete:hover { color: #e0524c; }
+.project-card .pc-move {
+  position: absolute; top: 10px; right: 32px; background: none; border: none;
+  cursor: pointer; color: #b3b6c0; font-size: 13px;
+}
+.project-card .pc-move:hover { color: #4a63e7; }
 .empty-hint { color: #9499a6; padding: 40px; text-align: center; grid-column: 1/-1; }
+
+/* ---------- 폴더 카드 / 브레드크럼 ---------- */
+.breadcrumb {
+  display: flex; align-items: center; gap: 4px; padding: 10px 40px 0; flex-wrap: wrap;
+  font-size: 13px; color: #6b6f7a;
+}
+.breadcrumb .bc-item { cursor: pointer; padding: 3px 6px; border-radius: 5px; }
+.breadcrumb .bc-item:hover { background: #eef0f4; color: #1f2330; }
+.breadcrumb .bc-item.current { color: #1f2330; font-weight: 600; cursor: default; }
+.breadcrumb .bc-item.current:hover { background: none; }
+.breadcrumb .bc-sep { color: #c4c7cf; }
+
+.folder-card {
+  background: #fbfbfc; border: 1px solid #e3e5ea; border-radius: 10px; padding: 16px;
+  cursor: pointer; transition: box-shadow .15s, transform .15s; position: relative;
+}
+.folder-card:hover { box-shadow: 0 6px 16px rgba(0,0,0,.08); transform: translateY(-2px); }
+.folder-card .fc-icon { font-size: 22px; margin-bottom: 6px; }
+.folder-card .fc-title { font-weight: 600; font-size: 15px; word-break: break-all; }
+.folder-card .fc-actions { position: absolute; top: 10px; right: 8px; display: flex; gap: 2px; }
+.folder-card .fc-actions button {
+  background: none; border: none; cursor: pointer; color: #b3b6c0; font-size: 12px; padding: 2px 4px;
+}
+.folder-card .fc-actions button:hover { color: #4a63e7; }
+.folder-card .fc-actions .fc-delete:hover { color: #e0524c; }
 
 /* ---------- 버튼/공통 ---------- */
 .btn, button, select, input[type=color] {

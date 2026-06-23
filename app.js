@@ -1,6 +1,7 @@
 // ===================== 마인드맵 앱 (서버 없이 동작하는 순수 클라이언트 앱) =====================
 
 const STORAGE_KEY = 'mindmap_projects_v1';
+const FOLDER_STORAGE_KEY = 'mindmap_folders_v1';
 const AUTH_KEY = 'mindmap_auth_v1';
 const AUTH_ID = 'wkdtodrls';
 const AUTH_PW = 'gudrb!!';
@@ -56,6 +57,17 @@ function saveAllProjects(map) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(map));
 }
 
+function loadAllFolders() {
+  try {
+    const raw = localStorage.getItem(FOLDER_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch (e) { return {}; }
+}
+
+function saveAllFolders(map) {
+  localStorage.setItem(FOLDER_STORAGE_KEY, JSON.stringify(map));
+}
+
 function createNewProject(name) {
   const rootId = uid();
   return {
@@ -63,6 +75,7 @@ function createNewProject(name) {
     name: name || '새 마인드맵',
     theme: 'sunset',
     lineStyle: 'elbow',
+    folderId: null,
     rootId,
     updatedAt: Date.now(),
     nodes: {
@@ -80,6 +93,8 @@ function createNewProject(name) {
 
 const App = {
   projects: loadAllProjects(),
+  folders: loadAllFolders(),
+  currentFolderId: null,
   current: null,
   selectedNodeId: null,
   selectedIds: new Set(),
@@ -172,6 +187,7 @@ document.getElementById('btn-logout').addEventListener('click', () => {
   sessionStorage.removeItem(AUTH_KEY);
   if (typeof firebase !== 'undefined') firebase.auth().signOut().catch(() => {});
   if (cloudUnsub) { cloudUnsub(); cloudUnsub = null; }
+  if (cloudFolderUnsub) { cloudFolderUnsub(); cloudFolderUnsub = null; }
   cloudReady = false;
   showLogin();
 });
@@ -182,24 +198,76 @@ function renderHome() {
   document.getElementById('home-view').classList.remove('hidden');
   document.getElementById('editor-view').classList.add('hidden');
   document.getElementById('login-view').classList.add('hidden');
+  renderBreadcrumb();
+
   const list = document.getElementById('project-list');
-  const ids = Object.keys(App.projects).sort((a,b) => (App.projects[b].updatedAt||0) - (App.projects[a].updatedAt||0));
-  if (ids.length === 0) {
+  const folderIds = Object.keys(App.folders)
+    .filter(id => (App.folders[id].parentId || null) === App.currentFolderId)
+    .sort((a, b) => App.folders[a].name.localeCompare(App.folders[b].name));
+  const projectIds = Object.keys(App.projects)
+    .filter(id => (App.projects[id].folderId || null) === App.currentFolderId)
+    .sort((a, b) => (App.projects[b].updatedAt || 0) - (App.projects[a].updatedAt || 0));
+
+  if (folderIds.length === 0 && projectIds.length === 0) {
     list.innerHTML = '<div class="empty-hint">아직 만든 마인드맵이 없습니다. "새 프로젝트"로 시작해보세요.</div>';
     return;
   }
   list.innerHTML = '';
-  ids.forEach(id => {
+
+  folderIds.forEach(id => {
+    const f = App.folders[id];
+    const card = document.createElement('div');
+    card.className = 'folder-card';
+    card.innerHTML = `<div class="fc-actions">
+        <button class="fc-move" title="폴더 이동">📦</button>
+        <button class="fc-rename" title="이름 변경">✏️</button>
+        <button class="fc-delete" title="삭제">✕</button>
+      </div>
+      <div class="fc-icon">📁</div>
+      <div class="fc-title">${escapeHtml(f.name)}</div>`;
+    card.addEventListener('click', (e) => {
+      if (e.target.closest('.fc-actions')) return;
+      App.currentFolderId = id;
+      renderHome();
+    });
+    card.querySelector('.fc-move').addEventListener('click', (e) => {
+      e.stopPropagation();
+      const exclude = collectFolderAndDescendants(id);
+      openFolderPicker(e.clientX, e.clientY, exclude, (targetId) => moveFolderTo(id, targetId));
+    });
+    card.querySelector('.fc-rename').addEventListener('click', (e) => {
+      e.stopPropagation();
+      const name = prompt('새 폴더 이름을 입력하세요', f.name);
+      if (name === null || !name.trim()) return;
+      f.name = name.trim();
+      f.updatedAt = Date.now();
+      saveAllFolders(App.folders);
+      pushFolderToCloud(f);
+      renderHome();
+    });
+    card.querySelector('.fc-delete').addEventListener('click', (e) => {
+      e.stopPropagation();
+      deleteFolder(id);
+    });
+    list.appendChild(card);
+  });
+
+  projectIds.forEach(id => {
     const p = App.projects[id];
     const card = document.createElement('div');
     card.className = 'project-card';
     const count = Object.keys(p.nodes || {}).length;
-    card.innerHTML = `<button class="pc-delete" title="삭제">✕</button>
+    card.innerHTML = `<button class="pc-move" title="폴더로 이동">📦</button>
+      <button class="pc-delete" title="삭제">✕</button>
       <div class="pc-title">${escapeHtml(p.name)}</div>
       <div class="pc-meta">노드 ${count}개 · ${p.updatedAt ? new Date(p.updatedAt).toLocaleString() : ''}</div>`;
     card.addEventListener('click', (e) => {
-      if (e.target.classList.contains('pc-delete')) return;
+      if (e.target.classList.contains('pc-delete') || e.target.classList.contains('pc-move')) return;
       openProject(id);
+    });
+    card.querySelector('.pc-move').addEventListener('click', (e) => {
+      e.stopPropagation();
+      openFolderPicker(e.clientX, e.clientY, null, (targetId) => moveProjectTo(id, targetId));
     });
     card.querySelector('.pc-delete').addEventListener('click', (e) => {
       e.stopPropagation();
@@ -212,6 +280,133 @@ function renderHome() {
     });
     list.appendChild(card);
   });
+}
+
+function renderBreadcrumb() {
+  const bc = document.getElementById('folder-breadcrumb');
+  bc.innerHTML = '';
+  const home = document.createElement('span');
+  home.className = 'bc-item' + (App.currentFolderId ? '' : ' current');
+  home.textContent = '🏠 홈';
+  home.addEventListener('click', () => { App.currentFolderId = null; renderHome(); });
+  bc.appendChild(home);
+  const path = folderPath(App.currentFolderId);
+  path.forEach((f, i) => {
+    const sep = document.createElement('span');
+    sep.className = 'bc-sep'; sep.textContent = '/';
+    bc.appendChild(sep);
+    const item = document.createElement('span');
+    item.className = 'bc-item' + (i === path.length - 1 ? ' current' : '');
+    item.textContent = f.name;
+    item.addEventListener('click', () => { App.currentFolderId = f.id; renderHome(); });
+    bc.appendChild(item);
+  });
+}
+
+function folderPath(folderId) {
+  const path = [];
+  let cur = folderId;
+  while (cur) {
+    const f = App.folders[cur];
+    if (!f) break;
+    path.unshift(f);
+    cur = f.parentId;
+  }
+  return path;
+}
+
+function collectFolderAndDescendants(folderId) {
+  const ids = [folderId];
+  let changed = true;
+  while (changed) {
+    changed = false;
+    Object.values(App.folders).forEach(f => {
+      if (f.parentId && ids.includes(f.parentId) && !ids.includes(f.id)) { ids.push(f.id); changed = true; }
+    });
+  }
+  return ids;
+}
+
+function isFolderDescendant(ancestorId, candidateId) {
+  let f = App.folders[candidateId];
+  while (f && f.parentId) {
+    if (f.parentId === ancestorId) return true;
+    f = App.folders[f.parentId];
+  }
+  return false;
+}
+
+function deleteFolder(folderId) {
+  const folder = App.folders[folderId];
+  if (!folder) return;
+  const allIds = collectFolderAndDescendants(folderId);
+  const projectsInside = Object.values(App.projects).filter(p => allIds.includes(p.folderId));
+  const subFolderCount = allIds.length - 1;
+  const msg = subFolderCount || projectsInside.length
+    ? `"${folder.name}" 폴더를 삭제하면 하위 폴더 ${subFolderCount}개와 마인드맵 ${projectsInside.length}개가 모두 삭제됩니다. 계속할까요?`
+    : `"${folder.name}" 폴더를 삭제할까요?`;
+  if (!confirm(msg)) return;
+  projectsInside.forEach(p => {
+    delete App.projects[p.id];
+    deleteProjectFromCloud(p.id);
+  });
+  allIds.forEach(fid => {
+    delete App.folders[fid];
+    deleteFolderFromCloud(fid);
+  });
+  saveAllProjects(App.projects);
+  saveAllFolders(App.folders);
+  if (allIds.includes(App.currentFolderId)) App.currentFolderId = folder.parentId || null;
+  renderHome();
+}
+
+function moveFolderTo(folderId, newParentId) {
+  if (folderId === newParentId) return;
+  if (newParentId && isFolderDescendant(folderId, newParentId)) { alert('하위 폴더로는 이동할 수 없습니다.'); return; }
+  const folder = App.folders[folderId];
+  if (!folder) return;
+  folder.parentId = newParentId || null;
+  folder.updatedAt = Date.now();
+  saveAllFolders(App.folders);
+  pushFolderToCloud(folder);
+  renderHome();
+}
+
+function moveProjectTo(projectId, folderId) {
+  const p = App.projects[projectId];
+  if (!p) return;
+  p.folderId = folderId || null;
+  p.updatedAt = Date.now();
+  saveAllProjects(App.projects);
+  pushProjectToCloud(p);
+  renderHome();
+}
+
+function buildFolderOptionsList(excludeIds) {
+  const items = [];
+  function walk(parentId, depth) {
+    Object.values(App.folders)
+      .filter(f => (f.parentId || null) === parentId)
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .forEach(f => {
+        if (excludeIds && excludeIds.includes(f.id)) return;
+        items.push({ id: f.id, name: f.name, depth });
+        walk(f.id, depth + 1);
+      });
+  }
+  walk(null, 0);
+  return items;
+}
+
+function openFolderPicker(clientX, clientY, excludeIds, onSelect) {
+  const menu = document.getElementById('context-menu');
+  menu.innerHTML = '';
+  menu.appendChild(cmItem('📂 최상위(홈)', () => onSelect(null)));
+  buildFolderOptionsList(excludeIds).forEach(item => {
+    const label = '　'.repeat(item.depth) + '📁 ' + item.name;
+    menu.appendChild(cmItem(label, () => onSelect(item.id)));
+  });
+  placeContextMenu(clientX, clientY);
 }
 
 function escapeHtml(s) {
@@ -276,9 +471,14 @@ function goHome() {
 let cloudReady = false;
 let cloudDb = null;
 let cloudUnsub = null;
+let cloudFolderUnsub = null;
 
 function cloudCollectionRef() {
   return cloudDb.collection('mindmap_data').doc(AUTH_ID).collection('projects');
+}
+
+function cloudFolderCollectionRef() {
+  return cloudDb.collection('mindmap_data').doc(AUTH_ID).collection('folders');
 }
 
 function initCloudSync() {
@@ -308,6 +508,28 @@ function initCloudSync() {
           if (!App.current) renderHome();
         }
       }, (err) => console.error('동기화 수신 오류', err));
+
+      if (cloudFolderUnsub) cloudFolderUnsub();
+      cloudFolderUnsub = cloudFolderCollectionRef().onSnapshot((snap) => {
+        let changed = false;
+        snap.docChanges().forEach(change => {
+          const id = change.doc.id;
+          if (change.type === 'removed') {
+            if (App.folders[id]) { delete App.folders[id]; changed = true; }
+            return;
+          }
+          const remote = change.doc.data();
+          const local = App.folders[id];
+          if (!local || (remote.updatedAt || 0) > (local.updatedAt || 0)) {
+            App.folders[id] = remote;
+            changed = true;
+          }
+        });
+        if (changed) {
+          saveAllFolders(App.folders);
+          if (!App.current) renderHome();
+        }
+      }, (err) => console.error('폴더 동기화 수신 오류', err));
     };
     if (firebase.auth().currentUser) {
       proceed();
@@ -327,6 +549,16 @@ function pushProjectToCloud(project) {
 function deleteProjectFromCloud(id) {
   if (!cloudReady) return;
   cloudCollectionRef().doc(id).delete().catch(err => console.error('클라우드 삭제 실패', err));
+}
+
+function pushFolderToCloud(folder) {
+  if (!cloudReady || !folder) return;
+  cloudFolderCollectionRef().doc(folder.id).set(folder).catch(err => console.error('폴더 클라우드 저장 실패', err));
+}
+
+function deleteFolderFromCloud(id) {
+  if (!cloudReady) return;
+  cloudFolderCollectionRef().doc(id).delete().catch(err => console.error('폴더 클라우드 삭제 실패', err));
 }
 
 // ===================== Undo/Redo =====================
@@ -1375,10 +1607,21 @@ document.getElementById('btn-new-project').addEventListener('click', () => {
   const name = prompt('새 마인드맵 이름을 입력하세요', '새 마인드맵');
   if (name === null) return;
   const p = createNewProject(name);
+  p.folderId = App.currentFolderId;
   App.projects[p.id] = p;
   saveAllProjects(App.projects);
   pushProjectToCloud(p);
   openProject(p.id);
+});
+
+document.getElementById('btn-new-folder').addEventListener('click', () => {
+  const name = prompt('새 폴더 이름을 입력하세요', '새 폴더');
+  if (name === null || !name.trim()) return;
+  const folder = { id: uid(), name: name.trim(), parentId: App.currentFolderId, updatedAt: Date.now() };
+  App.folders[folder.id] = folder;
+  saveAllFolders(App.folders);
+  pushFolderToCloud(folder);
+  renderHome();
 });
 
 // ===================== JSON 내보내기/가져오기 =====================
@@ -1416,6 +1659,7 @@ function importProjectFile(file) {
       if (!data.nodes || !data.rootId) throw new Error('형식이 올바르지 않습니다.');
       data.id = uid();
       data.updatedAt = Date.now();
+      data.folderId = App.currentFolderId;
       App.projects[data.id] = data;
       saveAllProjects(App.projects);
       pushProjectToCloud(data);
