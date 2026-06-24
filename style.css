@@ -20,9 +20,6 @@ html, body {
 .login-box input { padding: 10px; border: 1px solid #d8dae0; border-radius: 6px; font-size: 14px; }
 .login-submit { margin-top: 16px; padding: 10px; font-size: 14px; }
 .login-error { color: #e0524c; font-size: 12px; margin-top: 6px; }
-.login-pending-text { font-size: 13px; color: #4b4f59; line-height: 1.6; text-align: center; margin: 0 0 14px; }
-#login-pending { gap: 10px; }
-#btn-resend-verify, #btn-cancel-pending { padding: 10px; font-size: 13px; }
 
 /* ---------- 홈 화면 ---------- */
 .home-header {

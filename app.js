@@ -5,7 +5,6 @@ const FOLDER_STORAGE_KEY = 'mindmap_folders_v1';
 const AUTH_KEY = 'mindmap_auth_v1';
 const AUTH_ID = 'wkftodrls';
 const AUTH_PW = 'gudrb!!';
-const VERIFY_EMAIL = 'wkdanl@naver.com';
 
 const THEMES = [
   { id: 'sunset',   name: '선셋',     bg: '#f8f9fb', dot: '#e2e4ea', palette: ['#FF6B6B', '#FFA94D', '#FFD43B', '#69DB7C', '#4DABF7', '#9775FA', '#F783AC'] },
@@ -104,7 +103,7 @@ const App = {
   zoom: 1,
 };
 
-// ===================== 로그인 (아이디/비밀번호 + 이메일 링크 2단계 인증) =====================
+// ===================== 로그인 (아이디/비밀번호) =====================
 
 function isAuthed() {
   return localStorage.getItem(AUTH_KEY) === '1' || sessionStorage.getItem(AUTH_KEY) === '1';
@@ -120,45 +119,6 @@ function showLogin() {
   document.getElementById('login-view').classList.remove('hidden');
   document.getElementById('home-view').classList.add('hidden');
   document.getElementById('editor-view').classList.add('hidden');
-  document.getElementById('login-form').classList.remove('hidden');
-  document.getElementById('login-pending').classList.add('hidden');
-}
-
-function showLoginPending() {
-  document.getElementById('login-form').classList.add('hidden');
-  document.getElementById('login-pending').classList.remove('hidden');
-}
-
-function sendVerificationEmail() {
-  if (!ensureFirebaseApp()) {
-    alert('인증 시스템을 불러오지 못했습니다. 인터넷 연결을 확인해주세요.');
-    return;
-  }
-  const actionCodeSettings = { url: location.origin + location.pathname, handleCodeInApp: true };
-  firebase.auth().sendSignInLinkToEmail(VERIFY_EMAIL, actionCodeSettings).then(() => {
-    showLoginPending();
-  }).catch(err => {
-    console.error('인증 메일 전송 실패', err);
-    alert('인증 메일 전송에 실패했습니다: ' + err.message);
-  });
-}
-
-function completeEmailLinkSignIn() {
-  firebase.auth().signInWithEmailLink(VERIFY_EMAIL, window.location.href).then(() => {
-    const remember = localStorage.getItem('pending_remember');
-    localStorage.removeItem('pending_remember');
-    if (remember === '0') sessionStorage.setItem(AUTH_KEY, '1');
-    else localStorage.setItem(AUTH_KEY, '1');
-    history.replaceState(null, '', location.pathname);
-    afterAuth();
-  }).catch(err => {
-    console.error('이메일 링크 인증 실패', err);
-    history.replaceState(null, '', location.pathname);
-    showLogin();
-    const errEl = document.getElementById('login-error');
-    errEl.textContent = '인증 링크가 만료되었거나 이미 사용되었습니다. 다시 로그인해주세요.';
-    errEl.classList.remove('hidden');
-  });
 }
 
 document.getElementById('login-form').addEventListener('submit', (e) => {
@@ -166,19 +126,15 @@ document.getElementById('login-form').addEventListener('submit', (e) => {
   const id = document.getElementById('login-id').value.trim();
   const pw = document.getElementById('login-pw').value;
   if (id === AUTH_ID && pw === AUTH_PW) {
+    if (document.getElementById('login-remember').checked) localStorage.setItem(AUTH_KEY, '1');
+    else sessionStorage.setItem(AUTH_KEY, '1');
     document.getElementById('login-error').classList.add('hidden');
-    localStorage.setItem('pending_remember', document.getElementById('login-remember').checked ? '1' : '0');
-    sendVerificationEmail();
+    document.getElementById('login-view').classList.add('hidden');
+    afterAuth();
   } else {
     document.getElementById('login-error').textContent = '아이디 또는 비밀번호가 올바르지 않습니다.';
     document.getElementById('login-error').classList.remove('hidden');
   }
-});
-
-document.getElementById('btn-resend-verify').addEventListener('click', sendVerificationEmail);
-document.getElementById('btn-cancel-pending').addEventListener('click', () => {
-  localStorage.removeItem('pending_remember');
-  showLogin();
 });
 
 document.getElementById('btn-logout').addEventListener('click', () => {
@@ -1831,9 +1787,7 @@ function afterAuth() {
   renderHome();
 }
 
-if (ensureFirebaseApp() && firebase.auth().isSignInWithEmailLink(window.location.href)) {
-  completeEmailLinkSignIn();
-} else if (!isAuthed()) {
+if (!isAuthed()) {
   showLogin();
 } else {
   afterAuth();
