@@ -3,7 +3,7 @@
 const STORAGE_KEY = 'mindmap_projects_v1';
 const FOLDER_STORAGE_KEY = 'mindmap_folders_v1';
 const AUTH_KEY = 'mindmap_auth_v1';
-const AUTH_ID = 'wkdtodrls';
+const AUTH_ID = 'wkftodrls';
 const AUTH_PW = 'gudrb!!';
 const VERIFY_EMAIL = 'wkdanl@naver.com';
 
@@ -506,6 +506,11 @@ function initCloudSync() {
         if (changed) {
           saveAllProjects(App.projects);
           if (!App.current) renderHome();
+        }
+        if (pendingOpenProjectId && App.projects[pendingOpenProjectId]) {
+          const id = pendingOpenProjectId;
+          pendingOpenProjectId = null;
+          openProject(id);
         }
       }, (err) => console.error('동기화 수신 오류', err));
 
@@ -1808,10 +1813,22 @@ function checkShareHash() {
 window.addEventListener('beforeunload', () => { if (App.current) persistCurrentProject(); });
 setInterval(() => { if (App.current) persistCurrentProject(); }, 8000);
 
+// 플래너 앱의 "프로젝트 플로우" 페이지에서 #open=projectId 형태로 들어오면 해당 마인드맵을 바로 연다.
+let pendingOpenProjectId = null;
+
 function afterAuth() {
   initCloudSync();
-  if (location.hash.startsWith('#share=')) checkShareHash();
-  else renderHome();
+  if (location.hash.startsWith('#share=')) {
+    checkShareHash();
+    return;
+  }
+  if (location.hash.startsWith('#open=')) {
+    const id = decodeURIComponent(location.hash.slice(6));
+    history.replaceState(null, '', location.pathname);
+    if (App.projects[id]) { openProject(id); return; }
+    pendingOpenProjectId = id;
+  }
+  renderHome();
 }
 
 if (ensureFirebaseApp() && firebase.auth().isSignInWithEmailLink(window.location.href)) {
