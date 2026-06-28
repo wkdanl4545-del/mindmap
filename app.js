@@ -838,6 +838,7 @@ function render() {
     if (isHiddenByCollapse(n.id)) return;
     nodesLayer.appendChild(buildNodeEl(n));
   });
+  equalizeSiblingWidths();
 
   const lineStyle = App.current.lineStyle || 'elbow';
   if (lineStyle === 'bracket' || lineStyle === 'taper' || lineStyle === 'bracket-sharp') {
@@ -921,6 +922,31 @@ function measuredHalfWidth(nodeId) {
   const n = getNode(nodeId);
   const label = (n && n.icon ? n.icon + ' ' : '') + ((n && n.text) || '');
   return Math.max(25, label.length * ((n && n.fontSize) || 14) * 0.31 + 12);
+}
+
+// 같은 부모·같은 가지(좌/우)에 속한 형제 노드들의 너비를 가장 넓은 것에 맞춰 통일해서
+// 가로(바깥쪽) 가장자리도 한 줄로 정렬되어 보이게 한다.
+function equalizeSiblingWidths() {
+  const groups = {};
+  Object.values(App.current.nodes).forEach(n => {
+    if (!n.parentId || isHiddenByCollapse(n.id)) return;
+    const key = n.parentId + '_' + nodeHorizontalSide(n);
+    (groups[key] = groups[key] || []).push(n.id);
+  });
+  Object.values(groups).forEach(ids => {
+    if (ids.length < 2) return;
+    let maxW = 0;
+    ids.forEach(id => {
+      const el = document.querySelector(`.mm-node[data-id="${id}"]`);
+      if (el && el.offsetWidth > maxW) maxW = el.offsetWidth;
+    });
+    if (maxW > 0) {
+      ids.forEach(id => {
+        const el = document.querySelector(`.mm-node[data-id="${id}"]`);
+        if (el) el.style.width = maxW + 'px';
+      });
+    }
+  });
 }
 
 function bracketChildPaths(parent, kids, dir, radius) {
@@ -1862,7 +1888,8 @@ function buildExportSvg() {
     const anchorX = n.x - minX, y = n.y - minY;
     const textColor = isDark(n.bg) ? '#fff' : '#1f2330';
     const label = escapeHtml((n.icon ? n.icon + ' ' : '') + n.text);
-    const approxW = Math.max(50, label.length * (n.fontSize||14) * 0.62 + 24);
+    const liveEl = document.querySelector(`.mm-node[data-id="${n.id}"]`);
+    const approxW = liveEl ? liveEl.offsetWidth : Math.max(50, label.length * (n.fontSize||14) * 0.62 + 24);
     const rx = n.shape === 'rect' ? 2 : n.shape === 'pill' || n.shape === 'ellipse' ? 22 : 12;
     const noBox = n.shape === 'none';
     const rectLeft = side === 'left' ? anchorX - approxW : side === 'right' ? anchorX : anchorX - approxW / 2;
