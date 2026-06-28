@@ -595,7 +595,7 @@ function makeNode(id, parentId, opts) {
   return Object.assign({
     id, parentId, children: [], text: '새 노드', x: 0, y: 0,
     bg: '#4a63e7', borderColor: null, borderWidth: 2, shape: 'rounded', bold: false, fontSize: 14,
-    fontFamily: DEFAULT_FONT, textAlign: 'center', icon: '', image: null, collapsed: false
+    fontFamily: DEFAULT_FONT, textAlign: 'auto', icon: '', image: null, collapsed: false
   }, opts);
 }
 
@@ -832,6 +832,12 @@ function render() {
   canvasEl.style.backgroundImage = `radial-gradient(circle, ${theme.dot || '#e2e4ea'} 1px, transparent 1px)`;
   canvasEl.style.backgroundSize = '22px 22px';
 
+  // 노드를 먼저 그려서 실제 폭을 알아야 연결선이 박스 가장자리에 정확히 닿는다
+  Object.values(App.current.nodes).forEach(n => {
+    if (isHiddenByCollapse(n.id)) return;
+    nodesLayer.appendChild(buildNodeEl(n));
+  });
+
   if ((App.current.lineStyle || 'elbow') === 'bracket') {
     Object.values(App.current.nodes).forEach(parent => {
       if (parent.collapsed) return;
@@ -846,14 +852,12 @@ function render() {
       if (!n.parentId) return;
       const parent = getNode(n.parentId);
       if (parent.collapsed) return;
-      drawLine(linesLayer, parent.x + OFFSET, parent.y + OFFSET, n.x + OFFSET, n.y + OFFSET, n.bg);
+      const dir = n.x >= parent.x ? 1 : -1;
+      const x1 = parent.x + dir * measuredHalfWidth(parent.id);
+      const x2 = n.x - dir * measuredHalfWidth(n.id);
+      drawLine(linesLayer, x1 + OFFSET, parent.y + OFFSET, x2 + OFFSET, n.y + OFFSET, n.bg);
     });
   }
-
-  Object.values(App.current.nodes).forEach(n => {
-    if (isHiddenByCollapse(n.id)) return;
-    nodesLayer.appendChild(buildNodeEl(n));
-  });
 
   updateZoomTransform();
   updateToolbarForSelection();
@@ -882,15 +886,27 @@ function connectorPath(x1, y1, x2, y2) {
   return (App.current.lineStyle === 'curved' ? curvedPath : elbowPath)(x1, y1, x2, y2);
 }
 
+function measuredHalfWidth(nodeId) {
+  const el = document.querySelector(`.mm-node[data-id="${nodeId}"]`);
+  if (el && el.offsetWidth) return el.offsetWidth / 2;
+  const n = getNode(nodeId);
+  const label = (n && n.icon ? n.icon + ' ' : '') + ((n && n.text) || '');
+  return Math.max(25, label.length * ((n && n.fontSize) || 14) * 0.31 + 12);
+}
+
 function bracketSegments(parent, kids) {
   const avgDx = kids.reduce((s, k) => s + (k.x - parent.x), 0) / kids.length;
   const dir = avgDx >= 0 ? 1 : -1;
-  const trunkX = parent.x + dir * 36;
+  const parentHalf = measuredHalfWidth(parent.id);
+  const trunkX = parent.x + dir * (parentHalf + 20);
   const ys = kids.map(k => k.y).concat([parent.y]);
   const minY = Math.min(...ys), maxY = Math.max(...ys);
-  const segs = [{ x1: parent.x, y1: parent.y, x2: trunkX, y2: parent.y, color: parent.bg }];
+  const segs = [{ x1: parent.x + dir * parentHalf, y1: parent.y, x2: trunkX, y2: parent.y, color: parent.bg }];
   if (maxY - minY > 0.5) segs.push({ x1: trunkX, y1: minY, x2: trunkX, y2: maxY, color: parent.bg });
-  kids.forEach(k => segs.push({ x1: trunkX, y1: k.y, x2: k.x, y2: k.y, color: k.bg }));
+  kids.forEach(k => {
+    const kx = k.x - dir * measuredHalfWidth(k.id);
+    segs.push({ x1: trunkX, y1: k.y, x2: kx, y2: k.y, color: k.bg });
+  });
   return segs;
 }
 
@@ -949,7 +965,7 @@ function buildNodeEl(n) {
   const span = document.createElement('span');
   span.className = 'mm-text';
   span.textContent = n.text;
-  span.style.textAlign = n.textAlign || 'center';
+  span.style.textAlign = resolveTextAlign(n);
   span.style.flex = '1';
   el.appendChild(span);
 
@@ -994,6 +1010,13 @@ function isDark(hex) {
   if (!hex || hex[0] !== '#') return false;
   const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
   return (r*299 + g*587 + b*114) / 1000 < 140;
+}
+
+function resolveTextAlign(n) {
+  if (n.textAlign && n.textAlign !== 'auto') return n.textAlign;
+  if (n.id === App.current.rootId) return 'center';
+  const root = getNode(App.current.rootId);
+  return n.x < root.x ? 'right' : 'left';
 }
 
 // ===================== 좌표 변환 =====================
@@ -1414,7 +1437,8 @@ function updateToolbarForSelection() {
   document.getElementById('border-custom').value = (n && n.borderColor) || '#000000';
   document.getElementById('border-width-select').value = String((n && n.borderWidth) ?? 2);
   document.getElementById('font-family-select').value = (n && n.fontFamily) || DEFAULT_FONT;
-  const align = (n && n.textAlign) || 'center';
+  const align = (n && n.textAlign) || 'auto';
+  document.getElementById('btn-align-auto').classList.toggle('selected', align === 'auto');
   document.getElementById('btn-align-left').classList.toggle('selected', align === 'left');
   document.getElementById('btn-align-center').classList.toggle('selected', align === 'center');
   document.getElementById('btn-align-right').classList.toggle('selected', align === 'right');
@@ -1459,6 +1483,9 @@ document.getElementById('btn-font-plus').addEventListener('click', () => {
 });
 document.getElementById('btn-font-minus').addEventListener('click', () => {
   applyToSelected(n => n.fontSize = Math.max(10, (n.fontSize||14) - 2));
+});
+document.getElementById('btn-align-auto').addEventListener('click', () => {
+  applyToSelected(n => n.textAlign = 'auto');
 });
 document.getElementById('btn-align-left').addEventListener('click', () => {
   applyToSelected(n => n.textAlign = 'left');
@@ -1736,7 +1763,9 @@ function buildExportSvg() {
       if (!n.parentId) return;
       const p = getNode(n.parentId);
       if (isHiddenByCollapse(p.id)) return;
-      const x1 = p.x - minX, y1 = p.y - minY, x2 = n.x - minX, y2 = n.y - minY;
+      const dir = n.x >= p.x ? 1 : -1;
+      const x1 = (p.x + dir * measuredHalfWidth(p.id)) - minX, y1 = p.y - minY;
+      const x2 = (n.x - dir * measuredHalfWidth(n.id)) - minX, y2 = n.y - minY;
       svg += `<path d="${connectorPath(x1, y1, x2, y2)}" stroke="${n.bg || '#999'}" stroke-width="2.5" fill="none" opacity="0.75"/>`;
     });
   }
@@ -1753,7 +1782,7 @@ function buildExportSvg() {
       const stroke = n.borderColor || (n.bg ? 'none' : '#c2c5cc');
       svg += `<rect x="${x - approxW/2}" y="${y-22}" width="${approxW}" height="44" rx="${rx}" fill="${fill}" stroke="${stroke}" stroke-width="2" />`;
     }
-    const align = n.textAlign || 'center';
+    const align = resolveTextAlign(n);
     const anchor = align === 'left' ? 'start' : align === 'right' ? 'end' : 'middle';
     const textX = align === 'left' ? x - approxW/2 + 8 : align === 'right' ? x + approxW/2 - 8 : x;
     const textFill = noBox ? (n.bg || textColor) : textColor;

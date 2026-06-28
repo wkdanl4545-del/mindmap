@@ -85,7 +85,7 @@ html, body {
 button:hover, .btn:hover { background: #eef0f4; }
 .btn.primary, button.primary { background: #4a63e7; color: #fff; border-color: #4a63e7; }
 .btn.primary:hover { background: #3a52d4; }
-#btn-align-left.selected, #btn-align-center.selected, #btn-align-right.selected {
+#btn-align-auto.selected, #btn-align-left.selected, #btn-align-center.selected, #btn-align-right.selected {
   background: #4a63e7; color: #fff; border-color: #4a63e7;
 }
 input[type=color] { padding: 2px; width: 32px; height: 30px; }
