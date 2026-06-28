@@ -843,8 +843,15 @@ function render() {
       if (parent.collapsed) return;
       const kids = parent.children.filter(id => !isHiddenByCollapse(id)).map(getNode);
       if (!kids.length) return;
-      bracketSegments(parent, kids).forEach(s => {
-        drawLine(linesLayer, s.x1 + OFFSET, s.y1 + OFFSET, s.x2 + OFFSET, s.y2 + OFFSET, s.color, true);
+      bracketChildPaths(parent, kids).forEach(p => {
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', p.d);
+        path.setAttribute('transform', `translate(${OFFSET}, ${OFFSET})`);
+        path.setAttribute('stroke', p.color || '#999');
+        path.setAttribute('stroke-width', '2.5');
+        path.setAttribute('fill', 'none');
+        path.setAttribute('opacity', '0.75');
+        linesLayer.appendChild(path);
       });
     });
   } else {
@@ -863,8 +870,8 @@ function render() {
   updateToolbarForSelection();
 }
 
-function elbowPath(x1, y1, x2, y2) {
-  const midX = x1 + (x2 - x1) / 2;
+function elbowPath(x1, y1, x2, y2, bendX) {
+  const midX = bendX !== undefined ? bendX : x1 + (x2 - x1) / 2;
   const dy = y2 - y1;
   if (Math.abs(dy) < 1) return `M ${x1} ${y1} L ${x2} ${y2}`;
   const signY = dy > 0 ? 1 : -1;
@@ -894,25 +901,21 @@ function measuredHalfWidth(nodeId) {
   return Math.max(25, label.length * ((n && n.fontSize) || 14) * 0.31 + 12);
 }
 
-function bracketSegments(parent, kids) {
+function bracketChildPaths(parent, kids) {
   const avgDx = kids.reduce((s, k) => s + (k.x - parent.x), 0) / kids.length;
   const dir = avgDx >= 0 ? 1 : -1;
   const parentHalf = measuredHalfWidth(parent.id);
   const trunkX = parent.x + dir * (parentHalf + 20);
-  const ys = kids.map(k => k.y).concat([parent.y]);
-  const minY = Math.min(...ys), maxY = Math.max(...ys);
-  const segs = [{ x1: parent.x + dir * parentHalf, y1: parent.y, x2: trunkX, y2: parent.y, color: parent.bg }];
-  if (maxY - minY > 0.5) segs.push({ x1: trunkX, y1: minY, x2: trunkX, y2: maxY, color: parent.bg });
-  kids.forEach(k => {
-    const kx = k.x - dir * measuredHalfWidth(k.id);
-    segs.push({ x1: trunkX, y1: k.y, x2: kx, y2: k.y, color: k.bg });
+  const x1 = parent.x + dir * parentHalf;
+  return kids.map(k => {
+    const x2 = k.x - dir * measuredHalfWidth(k.id);
+    return { d: elbowPath(x1, parent.y, x2, k.y, trunkX), color: k.bg };
   });
-  return segs;
 }
 
-function drawLine(layer, x1, y1, x2, y2, color, straight) {
+function drawLine(layer, x1, y1, x2, y2, color) {
   const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-  path.setAttribute('d', straight ? `M ${x1} ${y1} L ${x2} ${y2}` : connectorPath(x1, y1, x2, y2));
+  path.setAttribute('d', connectorPath(x1, y1, x2, y2));
   path.setAttribute('stroke', color || '#999');
   path.setAttribute('stroke-width', '2.5');
   path.setAttribute('fill', 'none');
@@ -1754,8 +1757,8 @@ function buildExportSvg() {
       if (parent.collapsed) return;
       const kids = parent.children.filter(id => !isHiddenByCollapse(id)).map(getNode);
       if (!kids.length) return;
-      bracketSegments(parent, kids).forEach(s => {
-        svg += `<path d="M ${s.x1 - minX} ${s.y1 - minY} L ${s.x2 - minX} ${s.y2 - minY}" stroke="${s.color || '#999'}" stroke-width="2.5" fill="none" opacity="0.75"/>`;
+      bracketChildPaths(parent, kids).forEach(p => {
+        svg += `<path d="${p.d}" transform="translate(${-minX}, ${-minY})" stroke="${p.color || '#999'}" stroke-width="2.5" fill="none" opacity="0.75"/>`;
       });
     });
   } else {
