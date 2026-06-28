@@ -838,21 +838,31 @@ function render() {
     nodesLayer.appendChild(buildNodeEl(n));
   });
 
-  if ((App.current.lineStyle || 'elbow') === 'bracket') {
+  const lineStyle = App.current.lineStyle || 'elbow';
+  if (lineStyle === 'bracket' || lineStyle === 'taper') {
     Object.values(App.current.nodes).forEach(parent => {
       if (parent.collapsed) return;
       const kids = parent.children.filter(id => !isHiddenByCollapse(id)).map(getNode);
       if (!kids.length) return;
-      bracketChildPaths(parent, kids).forEach(p => {
+      const appendPath = (d, color, width) => {
         const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-        path.setAttribute('d', p.d);
+        path.setAttribute('d', d);
         path.setAttribute('transform', `translate(${OFFSET}, ${OFFSET})`);
-        path.setAttribute('stroke', p.color || '#999');
-        path.setAttribute('stroke-width', '2.5');
+        path.setAttribute('stroke', color || '#999');
+        path.setAttribute('stroke-width', String(width));
+        path.setAttribute('stroke-linecap', 'round');
         path.setAttribute('fill', 'none');
         path.setAttribute('opacity', '0.75');
         linesLayer.appendChild(path);
-      });
+      };
+      if (lineStyle === 'taper') {
+        bracketChildTaperPaths(parent, kids).forEach(p => {
+          appendPath(p.thick, parent.bg, 6);
+          appendPath(p.thin, p.color, 2.5);
+        });
+      } else {
+        bracketChildPaths(parent, kids).forEach(p => appendPath(p.d, p.color, 2.5));
+      }
     });
   } else {
     Object.values(App.current.nodes).forEach(n => {
@@ -910,6 +920,38 @@ function bracketChildPaths(parent, kids) {
   return kids.map(k => {
     const x2 = k.x - dir * measuredHalfWidth(k.id);
     return { d: elbowPath(x1, parent.y, x2, k.y, trunkX), color: k.bg };
+  });
+}
+
+function elbowSplit(x1, y1, x2, y2, bendX) {
+  const midX = bendX !== undefined ? bendX : x1 + (x2 - x1) / 2;
+  const dy = y2 - y1;
+  if (Math.abs(dy) < 1) {
+    const mid = x1 + (x2 - x1) / 2;
+    return { thick: `M ${x1} ${y1} L ${mid} ${y1}`, thin: `M ${mid} ${y1} L ${x2} ${y2}` };
+  }
+  const signY = dy > 0 ? 1 : -1;
+  const signX1 = midX >= x1 ? 1 : -1;
+  const signX2 = x2 >= midX ? 1 : -1;
+  const r = Math.min(14, Math.abs(midX - x1), Math.abs(x2 - midX), Math.abs(dy) / 2);
+  const bend1X = midX - r * signX1, bend2X = midX + r * signX2;
+  const topY = y1 + r * signY, botY = y2 - r * signY;
+  return {
+    thick: `M ${x1} ${y1} L ${bend1X} ${y1} Q ${midX} ${y1} ${midX} ${topY} L ${midX} ${botY}`,
+    thin: `M ${midX} ${botY} Q ${midX} ${y2} ${bend2X} ${y2} L ${x2} ${y2}`
+  };
+}
+
+function bracketChildTaperPaths(parent, kids) {
+  const avgDx = kids.reduce((s, k) => s + (k.x - parent.x), 0) / kids.length;
+  const dir = avgDx >= 0 ? 1 : -1;
+  const parentHalf = measuredHalfWidth(parent.id);
+  const trunkX = parent.x + dir * (parentHalf + 20);
+  const x1 = parent.x + dir * parentHalf;
+  return kids.map(k => {
+    const x2 = k.x - dir * measuredHalfWidth(k.id);
+    const split = elbowSplit(x1, parent.y, x2, k.y, trunkX);
+    return { thick: split.thick, thin: split.thin, color: k.bg };
   });
 }
 
@@ -1752,14 +1794,23 @@ function buildExportSvg() {
   let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">`;
   svg += `<rect width="100%" height="100%" fill="${theme.bg}"/>`;
 
-  if ((App.current.lineStyle || 'elbow') === 'bracket') {
+  const exportLineStyle = App.current.lineStyle || 'elbow';
+  if (exportLineStyle === 'bracket' || exportLineStyle === 'taper') {
     nodes.forEach(parent => {
       if (parent.collapsed) return;
       const kids = parent.children.filter(id => !isHiddenByCollapse(id)).map(getNode);
       if (!kids.length) return;
-      bracketChildPaths(parent, kids).forEach(p => {
-        svg += `<path d="${p.d}" transform="translate(${-minX}, ${-minY})" stroke="${p.color || '#999'}" stroke-width="2.5" fill="none" opacity="0.75"/>`;
-      });
+      const addPath = (d, color, width) => {
+        svg += `<path d="${d}" transform="translate(${-minX}, ${-minY})" stroke="${color || '#999'}" stroke-width="${width}" stroke-linecap="round" fill="none" opacity="0.75"/>`;
+      };
+      if (exportLineStyle === 'taper') {
+        bracketChildTaperPaths(parent, kids).forEach(p => {
+          addPath(p.thick, parent.bg, 6);
+          addPath(p.thin, p.color, 2.5);
+        });
+      } else {
+        bracketChildPaths(parent, kids).forEach(p => addPath(p.d, p.color, 2.5));
+      }
     });
   } else {
     nodes.forEach(n => {
