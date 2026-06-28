@@ -839,7 +839,7 @@ function render() {
   });
 
   const lineStyle = App.current.lineStyle || 'elbow';
-  if (lineStyle === 'bracket' || lineStyle === 'taper') {
+  if (lineStyle === 'bracket' || lineStyle === 'taper' || lineStyle === 'bracket-sharp') {
     Object.values(App.current.nodes).forEach(parent => {
       if (parent.collapsed) return;
       const kids = parent.children.filter(id => !isHiddenByCollapse(id)).map(getNode);
@@ -861,7 +861,8 @@ function render() {
           appendPath(p.thin, p.color, 2.5);
         });
       } else {
-        bracketChildPaths(parent, kids).forEach(p => appendPath(p.d, p.color, 2.5));
+        const radius = lineStyle === 'bracket-sharp' ? 0 : undefined;
+        bracketChildPaths(parent, kids, radius).forEach(p => appendPath(p.d, p.color, 2.5));
       }
     });
   } else {
@@ -880,14 +881,15 @@ function render() {
   updateToolbarForSelection();
 }
 
-function elbowPath(x1, y1, x2, y2, bendX) {
+function elbowPath(x1, y1, x2, y2, bendX, radius) {
   const midX = bendX !== undefined ? bendX : x1 + (x2 - x1) / 2;
   const dy = y2 - y1;
   if (Math.abs(dy) < 1) return `M ${x1} ${y1} L ${x2} ${y2}`;
   const signY = dy > 0 ? 1 : -1;
   const signX1 = midX >= x1 ? 1 : -1;
   const signX2 = x2 >= midX ? 1 : -1;
-  const r = Math.min(14, Math.abs(midX - x1), Math.abs(x2 - midX), Math.abs(dy) / 2);
+  const r = Math.min(radius ?? 14, Math.abs(midX - x1), Math.abs(x2 - midX), Math.abs(dy) / 2);
+  if (r < 0.5) return `M ${x1} ${y1} L ${midX} ${y1} L ${midX} ${y2} L ${x2} ${y2}`;
   const bend1X = midX - r * signX1, bend2X = midX + r * signX2;
   const topY = y1 + r * signY, botY = y2 - r * signY;
   return `M ${x1} ${y1} L ${bend1X} ${y1} Q ${midX} ${y1} ${midX} ${topY} ` +
@@ -911,7 +913,7 @@ function measuredHalfWidth(nodeId) {
   return Math.max(25, label.length * ((n && n.fontSize) || 14) * 0.31 + 12);
 }
 
-function bracketChildPaths(parent, kids) {
+function bracketChildPaths(parent, kids, radius) {
   const avgDx = kids.reduce((s, k) => s + (k.x - parent.x), 0) / kids.length;
   const dir = avgDx >= 0 ? 1 : -1;
   const parentHalf = measuredHalfWidth(parent.id);
@@ -919,7 +921,7 @@ function bracketChildPaths(parent, kids) {
   const x1 = parent.x + dir * parentHalf;
   return kids.map(k => {
     const x2 = k.x - dir * measuredHalfWidth(k.id);
-    return { d: elbowPath(x1, parent.y, x2, k.y, trunkX), color: k.bg };
+    return { d: elbowPath(x1, parent.y, x2, k.y, trunkX, radius), color: k.bg };
   });
 }
 
@@ -1795,7 +1797,7 @@ function buildExportSvg() {
   svg += `<rect width="100%" height="100%" fill="${theme.bg}"/>`;
 
   const exportLineStyle = App.current.lineStyle || 'elbow';
-  if (exportLineStyle === 'bracket' || exportLineStyle === 'taper') {
+  if (exportLineStyle === 'bracket' || exportLineStyle === 'taper' || exportLineStyle === 'bracket-sharp') {
     nodes.forEach(parent => {
       if (parent.collapsed) return;
       const kids = parent.children.filter(id => !isHiddenByCollapse(id)).map(getNode);
@@ -1809,7 +1811,8 @@ function buildExportSvg() {
           addPath(p.thin, p.color, 2.5);
         });
       } else {
-        bracketChildPaths(parent, kids).forEach(p => addPath(p.d, p.color, 2.5));
+        const radius = exportLineStyle === 'bracket-sharp' ? 0 : undefined;
+        bracketChildPaths(parent, kids, radius).forEach(p => addPath(p.d, p.color, 2.5));
       }
     });
   } else {
