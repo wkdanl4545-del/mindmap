@@ -855,14 +855,14 @@ function render() {
         path.setAttribute('opacity', '0.75');
         linesLayer.appendChild(path);
       };
+      const { left, right } = splitKidsBySide(parent, kids);
       if (lineStyle === 'taper') {
-        bracketChildTaperPaths(parent, kids).forEach(p => {
-          appendPath(p.thick, parent.bg, 6);
-          appendPath(p.thin, p.color, 2.5);
-        });
+        if (left.length) bracketChildTaperPaths(parent, left, -1).forEach(p => { appendPath(p.thick, parent.bg, 6); appendPath(p.thin, p.color, 2.5); });
+        if (right.length) bracketChildTaperPaths(parent, right, 1).forEach(p => { appendPath(p.thick, parent.bg, 6); appendPath(p.thin, p.color, 2.5); });
       } else {
         const radius = lineStyle === 'bracket-sharp' ? 0 : undefined;
-        bracketChildPaths(parent, kids, radius).forEach(p => appendPath(p.d, p.color, 2.5));
+        if (left.length) bracketChildPaths(parent, left, -1, radius).forEach(p => appendPath(p.d, p.color, 2.5));
+        if (right.length) bracketChildPaths(parent, right, 1, radius).forEach(p => appendPath(p.d, p.color, 2.5));
       }
     });
   } else {
@@ -905,6 +905,13 @@ function connectorPath(x1, y1, x2, y2) {
   return (App.current.lineStyle === 'curved' ? curvedPath : elbowPath)(x1, y1, x2, y2);
 }
 
+function splitKidsBySide(parent, kids) {
+  return {
+    left: kids.filter(k => k.x < parent.x),
+    right: kids.filter(k => k.x >= parent.x)
+  };
+}
+
 function measuredHalfWidth(nodeId) {
   const el = document.querySelector(`.mm-node[data-id="${nodeId}"]`);
   if (el && el.offsetWidth) return el.offsetWidth / 2;
@@ -913,9 +920,7 @@ function measuredHalfWidth(nodeId) {
   return Math.max(25, label.length * ((n && n.fontSize) || 14) * 0.31 + 12);
 }
 
-function bracketChildPaths(parent, kids, radius) {
-  const avgDx = kids.reduce((s, k) => s + (k.x - parent.x), 0) / kids.length;
-  const dir = avgDx >= 0 ? 1 : -1;
+function bracketChildPaths(parent, kids, dir, radius) {
   const parentHalf = measuredHalfWidth(parent.id);
   const trunkX = parent.x + dir * (parentHalf + 20);
   const x1 = parent.x + dir * parentHalf;
@@ -944,9 +949,7 @@ function elbowSplit(x1, y1, x2, y2, bendX) {
   };
 }
 
-function bracketChildTaperPaths(parent, kids) {
-  const avgDx = kids.reduce((s, k) => s + (k.x - parent.x), 0) / kids.length;
-  const dir = avgDx >= 0 ? 1 : -1;
+function bracketChildTaperPaths(parent, kids, dir) {
   const parentHalf = measuredHalfWidth(parent.id);
   const trunkX = parent.x + dir * (parentHalf + 20);
   const x1 = parent.x + dir * parentHalf;
@@ -1802,14 +1805,14 @@ function buildExportSvg() {
       const addPath = (d, color, width) => {
         svg += `<path d="${d}" transform="translate(${-minX}, ${-minY})" stroke="${color || '#999'}" stroke-width="${width}" stroke-linecap="round" fill="none" opacity="0.75"/>`;
       };
+      const { left, right } = splitKidsBySide(parent, kids);
       if (exportLineStyle === 'taper') {
-        bracketChildTaperPaths(parent, kids).forEach(p => {
-          addPath(p.thick, parent.bg, 6);
-          addPath(p.thin, p.color, 2.5);
-        });
+        if (left.length) bracketChildTaperPaths(parent, left, -1).forEach(p => { addPath(p.thick, parent.bg, 6); addPath(p.thin, p.color, 2.5); });
+        if (right.length) bracketChildTaperPaths(parent, right, 1).forEach(p => { addPath(p.thick, parent.bg, 6); addPath(p.thin, p.color, 2.5); });
       } else {
         const radius = exportLineStyle === 'bracket-sharp' ? 0 : undefined;
-        bracketChildPaths(parent, kids, radius).forEach(p => addPath(p.d, p.color, 2.5));
+        if (left.length) bracketChildPaths(parent, left, -1, radius).forEach(p => addPath(p.d, p.color, 2.5));
+        if (right.length) bracketChildPaths(parent, right, 1, radius).forEach(p => addPath(p.d, p.color, 2.5));
       }
     });
   } else {
