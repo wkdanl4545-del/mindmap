@@ -153,7 +153,7 @@ input[type=color] { padding: 2px; width: 32px; height: 30px; }
   padding: 2px 4px;
 }
 .mm-node.selected { outline: 3px solid #4a63e7; outline-offset: 2px; }
-.mm-node .mm-text { outline: none; }
+.mm-node .mm-text { outline: none; min-width: 0; }
 .mm-node .mm-text[contenteditable="true"] { cursor: text; background: rgba(255,255,255,.5); border-radius: 4px; }
 .mm-node img.mm-thumb { max-width: 60px; max-height: 60px; border-radius: 6px; display: block; }
 .mm-node .mm-icon { font-size: 16px; }
