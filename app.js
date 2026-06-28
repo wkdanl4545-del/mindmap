@@ -1060,8 +1060,9 @@ function isDark(hex) {
 }
 
 function resolveTextAlign(n) {
-  if (n.textAlign && n.textAlign !== 'auto') return n.textAlign;
   if (n.id === App.current.rootId) return 'center';
+  if (n.textAlign === 'left' || n.textAlign === 'right') return n.textAlign;
+  // 'auto', 예전 기본값이던 'center', 또는 미설정 -> 가지 방향에 따라 자동 정렬
   const root = getNode(App.current.rootId);
   return n.x < root.x ? 'right' : 'left';
 }
@@ -1484,10 +1485,9 @@ function updateToolbarForSelection() {
   document.getElementById('border-custom').value = (n && n.borderColor) || '#000000';
   document.getElementById('border-width-select').value = String((n && n.borderWidth) ?? 2);
   document.getElementById('font-family-select').value = (n && n.fontFamily) || DEFAULT_FONT;
-  const align = (n && n.textAlign) || 'auto';
+  const align = (n && (n.textAlign === 'left' || n.textAlign === 'right')) ? n.textAlign : 'auto';
   document.getElementById('btn-align-auto').classList.toggle('selected', align === 'auto');
   document.getElementById('btn-align-left').classList.toggle('selected', align === 'left');
-  document.getElementById('btn-align-center').classList.toggle('selected', align === 'center');
   document.getElementById('btn-align-right').classList.toggle('selected', align === 'right');
 }
 
@@ -1536,9 +1536,6 @@ document.getElementById('btn-align-auto').addEventListener('click', () => {
 });
 document.getElementById('btn-align-left').addEventListener('click', () => {
   applyToSelected(n => n.textAlign = 'left');
-});
-document.getElementById('btn-align-center').addEventListener('click', () => {
-  applyToSelected(n => n.textAlign = 'center');
 });
 document.getElementById('btn-align-right').addEventListener('click', () => {
   applyToSelected(n => n.textAlign = 'right');
