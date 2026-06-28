@@ -7,6 +7,7 @@ html, body {
 .hidden { display: none !important; }
 .view { width: 100vw; height: 100vh; display: flex; flex-direction: column; }
 
+
 /* ---------- 로그인 화면 ---------- */
 #login-view { align-items: center; justify-content: center; background: #eef0f5; }
 .login-box {
@@ -222,6 +223,7 @@ input[type=color] { padding: 2px; width: 32px; height: 30px; }
   opacity: 0; transition: opacity .25s;
 }
 .toast.show { opacity: 1; }
+.toast.error { background: #c0392b; }
 
 /* ---------- 모바일/태블릿 대응 ---------- */
 @media (max-width: 1024px) {

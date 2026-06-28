@@ -31,6 +31,7 @@
       <button id="btn-new-project" class="btn primary">+ 새 프로젝트</button>
       <label class="btn" for="file-import-home">파일에서 열기</label>
       <input type="file" id="file-import-home" accept=".json,application/json" hidden>
+      <button id="btn-cloud-refresh" title="클라우드에서 목록 새로고침">⬇ 클라우드 가져오기</button>
       <button id="btn-logout" title="로그아웃">로그아웃</button>
     </div>
   </header>
@@ -120,6 +121,8 @@
       </div>
 
       <div class="toolbar-group toolbar-right">
+        <button id="btn-save-sync" class="btn primary" title="지금 바로 저장하고 클라우드에 동기화">☁<span class="btn-label"> 저장 및 동기화</span></button>
+        <button id="btn-cloud-pull" title="클라우드에 저장된 최신 버전 가져오기">⬇<span class="btn-label"> 클라우드 가져오기</span></button>
         <button id="btn-save-as">📑<span class="btn-label"> 다른 이름으로 저장</span></button>
         <button id="btn-export-json">💾<span class="btn-label"> 내보내기(JSON)</span></button>
         <label class="btn" for="file-import-editor">📂<span class="btn-label"> 가져오기</span></label>

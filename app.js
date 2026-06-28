@@ -383,24 +383,25 @@ function openProject(id) {
 }
 
 function persistCurrentProject() {
-  if (!App.current) return;
+  if (!App.current) return Promise.resolve();
   App.current.updatedAt = Date.now();
   App.projects[App.current.id] = JSON.parse(JSON.stringify(App.current));
   saveAllProjects(App.projects);
-  pushProjectToCloud(App.projects[App.current.id]);
+  return pushProjectToCloud(App.projects[App.current.id]);
 }
 
 let toastTimer = null;
-function showToast(message) {
+function showToast(message, isError) {
   const el = document.getElementById('toast');
   el.textContent = message;
+  el.classList.toggle('error', !!isError);
   el.classList.remove('hidden');
   requestAnimationFrame(() => el.classList.add('show'));
   if (toastTimer) clearTimeout(toastTimer);
   toastTimer = setTimeout(() => {
     el.classList.remove('show');
     setTimeout(() => el.classList.add('hidden'), 250);
-  }, 1600);
+  }, isError ? 3000 : 1600);
 }
 
 function saveProjectAs(newName) {
@@ -503,8 +504,11 @@ function initCloudSync() {
 }
 
 function pushProjectToCloud(project) {
-  if (!cloudReady || !project) return;
-  cloudCollectionRef().doc(project.id).set(project).catch(err => console.error('클라우드 저장 실패', err));
+  if (!cloudReady || !project) return Promise.resolve();
+  return cloudCollectionRef().doc(project.id).set(project).catch(err => {
+    console.error('클라우드 저장 실패', err);
+    throw err;
+  });
 }
 
 function deleteProjectFromCloud(id) {
@@ -520,6 +524,45 @@ function pushFolderToCloud(folder) {
 function deleteFolderFromCloud(id) {
   if (!cloudReady) return;
   cloudFolderCollectionRef().doc(id).delete().catch(err => console.error('폴더 클라우드 삭제 실패', err));
+}
+
+function pullProjectFromCloud(projectId) {
+  if (!cloudReady) { showToast('⚠ 클라우드에 연결되어 있지 않습니다', true); return; }
+  cloudCollectionRef().doc(projectId).get().then(doc => {
+    if (!doc.exists) { showToast('⚠ 클라우드에 저장된 버전이 없습니다', true); return; }
+    if (!confirm('클라우드의 최신 버전을 가져오면 지금 화면의 변경 내용은 사라집니다. 계속할까요?')) return;
+    const remote = doc.data();
+    App.projects[projectId] = remote;
+    saveAllProjects(App.projects);
+    if (App.current && App.current.id === projectId) {
+      App.current = JSON.parse(JSON.stringify(remote));
+      App.selectedNodeId = App.current.rootId;
+      App.selectedIds = new Set();
+      App.history = []; App.future = [];
+      document.getElementById('project-name').value = App.current.name;
+      document.getElementById('line-style-select').value = App.current.lineStyle || 'elbow';
+      render();
+    }
+    showToast('☁ 클라우드에서 불러왔습니다');
+  }).catch(err => {
+    console.error('클라우드 가져오기 실패', err);
+    showToast('⚠ 클라우드에서 가져오는 중 오류가 발생했습니다', true);
+  });
+}
+
+function pullAllFromCloud() {
+  if (!cloudReady) { showToast('⚠ 클라우드에 연결되어 있지 않습니다', true); return; }
+  Promise.all([cloudCollectionRef().get(), cloudFolderCollectionRef().get()]).then(([projSnap, folderSnap]) => {
+    projSnap.forEach(doc => { App.projects[doc.id] = doc.data(); });
+    folderSnap.forEach(doc => { App.folders[doc.id] = doc.data(); });
+    saveAllProjects(App.projects);
+    saveAllFolders(App.folders);
+    if (!App.current) renderHome();
+    showToast('☁ 클라우드 목록을 새로고침했습니다');
+  }).catch(err => {
+    console.error('클라우드 가져오기 실패', err);
+    showToast('⚠ 클라우드에서 가져오는 중 오류가 발생했습니다', true);
+  });
 }
 
 // ===================== Undo/Redo =====================
@@ -1610,6 +1653,28 @@ document.getElementById('btn-save-as').addEventListener('click', () => {
   const name = prompt('다른 이름으로 저장할 이름을 입력하세요', `${App.current.name} 복사본`);
   if (name === null || !name.trim()) return;
   saveProjectAs(name.trim());
+});
+
+document.getElementById('btn-save-sync').addEventListener('click', () => {
+  if (!App.current) return;
+  const btn = document.getElementById('btn-save-sync');
+  btn.disabled = true;
+  persistCurrentProject().then(() => {
+    showToast('☁ 저장 및 동기화 완료');
+  }).catch(() => {
+    showToast('⚠ 로컬에는 저장됐지만 클라우드 동기화는 실패했습니다 (오프라인일 수 있음)', true);
+  }).finally(() => {
+    btn.disabled = false;
+  });
+});
+
+document.getElementById('btn-cloud-pull').addEventListener('click', () => {
+  if (!App.current) return;
+  pullProjectFromCloud(App.current.id);
+});
+
+document.getElementById('btn-cloud-refresh').addEventListener('click', () => {
+  pullAllFromCloud();
 });
 
 function importProjectFile(file) {
