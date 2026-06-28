@@ -610,7 +610,8 @@ function addChildNode(parentId, atX, atY) {
   if (atX !== undefined) { x = atX; y = atY; }
   else {
     const dir = nodeSide(parentId);
-    x = parent.x + dir * 170;
+    const parentReach = parentId === App.current.rootId ? measuredHalfWidth(parentId) : measuredHalfWidth(parentId) * 2;
+    x = parent.x + dir * (parentReach + 60);
     y = parent.y + parent.children.length * 64 - (parent.children.length ? 32 : 0);
   }
   App.current.nodes[id] = makeNode(id, parentId, { text: '새 노드', x, y, bg: color, shape: 'rounded', fontSize: 14 });
@@ -871,8 +872,10 @@ function render() {
       const parent = getNode(n.parentId);
       if (parent.collapsed) return;
       const dir = n.x >= parent.x ? 1 : -1;
-      const x1 = parent.x + dir * measuredHalfWidth(parent.id);
-      const x2 = n.x - dir * measuredHalfWidth(n.id);
+      const x1 = parent.id === App.current.rootId
+        ? parent.x + dir * measuredHalfWidth(parent.id)
+        : parent.x + dir * measuredHalfWidth(parent.id) * 2;
+      const x2 = n.x;
       drawLine(linesLayer, x1 + OFFSET, parent.y + OFFSET, x2 + OFFSET, n.y + OFFSET, n.bg);
     });
   }
@@ -922,10 +925,10 @@ function measuredHalfWidth(nodeId) {
 
 function bracketChildPaths(parent, kids, dir, radius) {
   const parentHalf = measuredHalfWidth(parent.id);
-  const trunkX = parent.x + dir * (parentHalf + 20);
-  const x1 = parent.x + dir * parentHalf;
+  const x1 = parent.id === App.current.rootId ? parent.x + dir * parentHalf : parent.x + dir * parentHalf * 2;
+  const trunkX = x1 + dir * 20;
   return kids.map(k => {
-    const x2 = k.x - dir * measuredHalfWidth(k.id);
+    const x2 = k.x;
     return { d: elbowPath(x1, parent.y, x2, k.y, trunkX, radius), color: k.bg };
   });
 }
@@ -951,10 +954,10 @@ function elbowSplit(x1, y1, x2, y2, bendX) {
 
 function bracketChildTaperPaths(parent, kids, dir) {
   const parentHalf = measuredHalfWidth(parent.id);
-  const trunkX = parent.x + dir * (parentHalf + 20);
-  const x1 = parent.x + dir * parentHalf;
+  const x1 = parent.id === App.current.rootId ? parent.x + dir * parentHalf : parent.x + dir * parentHalf * 2;
+  const trunkX = x1 + dir * 20;
   return kids.map(k => {
-    const x2 = k.x - dir * measuredHalfWidth(k.id);
+    const x2 = k.x;
     const split = elbowSplit(x1, parent.y, x2, k.y, trunkX);
     return { thick: split.thick, thin: split.thin, color: k.bg };
   });
@@ -981,11 +984,19 @@ function isHiddenByCollapse(id) {
   return false;
 }
 
+function nodeHorizontalSide(n) {
+  if (n.id === App.current.rootId) return 'center';
+  const root = getNode(App.current.rootId);
+  return n.x < root.x ? 'left' : 'right';
+}
+
 function buildNodeEl(n) {
   const el = document.createElement('div');
   el.className = `mm-node shape-${n.shape}` + (App.selectedIds.has(n.id) ? ' selected' : '');
   el.style.left = (n.x + OFFSET) + 'px';
   el.style.top = (n.y + OFFSET) + 'px';
+  const side = nodeHorizontalSide(n);
+  el.style.transform = side === 'left' ? 'translate(-100%, -50%)' : side === 'right' ? 'translate(0%, -50%)' : 'translate(-50%, -50%)';
   if (n.shape === 'none') {
     el.style.background = 'transparent';
     el.style.borderColor = 'transparent';
@@ -1030,7 +1041,9 @@ function buildNodeEl(n) {
     const badge = document.createElement('div');
     badge.className = 'mm-collapse-badge';
     badge.textContent = n.collapsed ? '+' + countDescendants(n.id) : '−';
-    badge.style.left = (n.x + OFFSET + (n.x >= 0 ? 60 : -60)) + 'px';
+    const half = measuredHalfWidth(n.id);
+    const badgeX = side === 'left' ? n.x - half * 2 - 14 : side === 'right' ? n.x + half * 2 + 14 : n.x + 60;
+    badge.style.left = (badgeX + OFFSET) + 'px';
     badge.style.top = (n.y + OFFSET) + 'px';
     badge.addEventListener('pointerdown', (e) => e.stopPropagation());
     badge.addEventListener('click', (e) => {
@@ -1159,6 +1172,22 @@ function focusNodeText(id, selectAll) {
     }
     el.addEventListener('blur', commitEdit, { once: true });
     el.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Enter' && ev.shiftKey) {
+        ev.preventDefault();
+        const sel = window.getSelection();
+        if (sel.rangeCount) {
+          const range = sel.getRangeAt(0);
+          range.deleteContents();
+          const lineBreak = document.createTextNode('\n');
+          range.insertNode(lineBreak);
+          range.setStartAfter(lineBreak);
+          range.setEndAfter(lineBreak);
+          sel.removeAllRanges();
+          sel.addRange(range);
+        }
+        ev.stopPropagation();
+        return;
+      }
       if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); el.blur(); }
       if (ev.key === 'Escape') { ev.preventDefault(); el.blur(); }
       ev.stopPropagation();
@@ -1168,7 +1197,7 @@ function focusNodeText(id, selectAll) {
   function commitEdit() {
     const el2 = document.querySelector(`.mm-node[data-id="${id}"] .mm-text`);
     if (!el2) return;
-    const newText = el2.textContent.trim() || '노드';
+    const newText = (el2.innerText || el2.textContent).trim() || '노드';
     el2.contentEditable = 'false';
     if (getNode(id) && getNode(id).text !== newText) {
       snapshot();
@@ -1821,27 +1850,31 @@ function buildExportSvg() {
       const p = getNode(n.parentId);
       if (isHiddenByCollapse(p.id)) return;
       const dir = n.x >= p.x ? 1 : -1;
-      const x1 = (p.x + dir * measuredHalfWidth(p.id)) - minX, y1 = p.y - minY;
-      const x2 = (n.x - dir * measuredHalfWidth(n.id)) - minX, y2 = n.y - minY;
+      const pEdge = p.id === App.current.rootId ? p.x + dir * measuredHalfWidth(p.id) : p.x + dir * measuredHalfWidth(p.id) * 2;
+      const x1 = pEdge - minX, y1 = p.y - minY;
+      const x2 = n.x - minX, y2 = n.y - minY;
       svg += `<path d="${connectorPath(x1, y1, x2, y2)}" stroke="${n.bg || '#999'}" stroke-width="2.5" fill="none" opacity="0.75"/>`;
     });
   }
 
   nodes.forEach(n => {
-    const x = n.x - minX, y = n.y - minY;
+    const side = nodeHorizontalSide(n);
+    const anchorX = n.x - minX, y = n.y - minY;
     const textColor = isDark(n.bg) ? '#fff' : '#1f2330';
     const label = escapeHtml((n.icon ? n.icon + ' ' : '') + n.text);
     const approxW = Math.max(50, label.length * (n.fontSize||14) * 0.62 + 24);
     const rx = n.shape === 'rect' ? 2 : n.shape === 'pill' || n.shape === 'ellipse' ? 22 : 12;
     const noBox = n.shape === 'none';
+    const rectLeft = side === 'left' ? anchorX - approxW : side === 'right' ? anchorX : anchorX - approxW / 2;
+    const boxCenterX = rectLeft + approxW / 2;
     if (!noBox) {
       const fill = n.bg || 'none';
       const stroke = n.borderColor || (n.bg ? 'none' : '#c2c5cc');
-      svg += `<rect x="${x - approxW/2}" y="${y-22}" width="${approxW}" height="44" rx="${rx}" fill="${fill}" stroke="${stroke}" stroke-width="2" />`;
+      svg += `<rect x="${rectLeft}" y="${y-22}" width="${approxW}" height="44" rx="${rx}" fill="${fill}" stroke="${stroke}" stroke-width="2" />`;
     }
     const align = resolveTextAlign(n);
     const anchor = align === 'left' ? 'start' : align === 'right' ? 'end' : 'middle';
-    const textX = align === 'left' ? x - approxW/2 + 8 : align === 'right' ? x + approxW/2 - 8 : x;
+    const textX = align === 'left' ? rectLeft + 8 : align === 'right' ? rectLeft + approxW - 8 : boxCenterX;
     const textFill = noBox ? (n.bg || textColor) : textColor;
     svg += `<text x="${textX}" y="${y+5}" font-size="${n.fontSize||14}" font-weight="${n.bold?700:400}" fill="${textFill}" text-anchor="${anchor}" font-family="${(n.fontFamily || DEFAULT_FONT).replace(/'/g, '')}">${label}</text>`;
   });

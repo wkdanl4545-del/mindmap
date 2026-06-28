@@ -137,12 +137,12 @@ input[type=color] { padding: 2px; width: 32px; height: 30px; }
 #nodes-layer { pointer-events: none; }
 
 .mm-node {
-  position: absolute; transform: translate(-50%, -50%);
-  padding: 8px 16px; min-width: 40px; max-width: 320px;
+  position: absolute;
+  padding: 8px 16px; min-width: 40px;
   border: 2px solid transparent; cursor: pointer; pointer-events: all;
   user-select: none; display: flex; align-items: center; gap: 6px;
   box-shadow: 0 1px 3px rgba(0,0,0,.15); font-size: 14px; line-height: 1.3;
-  white-space: pre-wrap; word-break: break-word; touch-action: none;
+  white-space: pre; touch-action: none;
 }
 .mm-node.shape-rounded { border-radius: 12px; }
 .mm-node.shape-rect { border-radius: 2px; }
