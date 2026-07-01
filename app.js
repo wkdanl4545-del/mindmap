@@ -858,8 +858,8 @@ function render() {
       };
       const { left, right } = splitKidsBySide(parent, kids);
       if (lineStyle === 'taper') {
-        if (left.length) bracketChildTaperPaths(parent, left, -1).forEach(p => { appendPath(p.thick, parent.bg, 6); appendPath(p.thin, p.color, 2.5); });
-        if (right.length) bracketChildTaperPaths(parent, right, 1).forEach(p => { appendPath(p.thick, parent.bg, 6); appendPath(p.thin, p.color, 2.5); });
+        if (left.length) { const tp = bracketChildTaperPaths(parent, left, -1); tp.trunkPaths.forEach(p => appendPath(p.d, p.color, 6)); tp.stubPaths.forEach(p => appendPath(p.d, p.color, 2.5)); }
+        if (right.length) { const tp = bracketChildTaperPaths(parent, right, 1); tp.trunkPaths.forEach(p => appendPath(p.d, p.color, 6)); tp.stubPaths.forEach(p => appendPath(p.d, p.color, 2.5)); }
       } else {
         const radius = lineStyle === 'bracket-sharp' ? 0 : undefined;
         if (left.length) bracketChildPaths(parent, left, -1, radius).forEach(p => appendPath(p.d, p.color, 2.5));
@@ -928,10 +928,21 @@ function bracketChildPaths(parent, kids, dir, radius) {
   const parentHalf = measuredHalfWidth(parent.id);
   const x1 = parent.id === App.current.rootId ? parent.x + dir * parentHalf : parent.x + dir * parentHalf * 2;
   const trunkX = x1 + dir * 20;
-  return kids.map(k => {
-    const x2 = k.x;
-    return { d: elbowPath(x1, parent.y, x2, k.y, trunkX, radius), color: k.bg };
-  });
+
+  if (kids.length === 1) {
+    return [{ d: elbowPath(x1, parent.y, kids[0].x, kids[0].y, trunkX, radius), color: kids[0].bg }];
+  }
+
+  const ys = kids.map(k => k.y);
+  const spineTop = Math.min(...ys, parent.y);
+  const spineBot = Math.max(...ys, parent.y);
+  const armColor = parent.bg || '#999';
+
+  return [
+    { d: `M ${x1} ${parent.y} L ${trunkX} ${parent.y}`, color: armColor },
+    { d: `M ${trunkX} ${spineTop} L ${trunkX} ${spineBot}`, color: armColor },
+    ...kids.map(k => ({ d: `M ${trunkX} ${k.y} L ${k.x} ${k.y}`, color: k.bg || '#999' }))
+  ];
 }
 
 function elbowSplit(x1, y1, x2, y2, bendX) {
@@ -957,11 +968,27 @@ function bracketChildTaperPaths(parent, kids, dir) {
   const parentHalf = measuredHalfWidth(parent.id);
   const x1 = parent.id === App.current.rootId ? parent.x + dir * parentHalf : parent.x + dir * parentHalf * 2;
   const trunkX = x1 + dir * 20;
-  return kids.map(k => {
-    const x2 = k.x;
-    const split = elbowSplit(x1, parent.y, x2, k.y, trunkX);
-    return { thick: split.thick, thin: split.thin, color: k.bg };
-  });
+
+  if (kids.length === 1) {
+    const split = elbowSplit(x1, parent.y, kids[0].x, kids[0].y, trunkX);
+    return {
+      trunkPaths: [{ d: split.thick, color: parent.bg || '#999' }],
+      stubPaths:  [{ d: split.thin,  color: kids[0].bg || '#999' }]
+    };
+  }
+
+  const ys = kids.map(k => k.y);
+  const spineTop = Math.min(...ys, parent.y);
+  const spineBot = Math.max(...ys, parent.y);
+  const armColor = parent.bg || '#999';
+
+  return {
+    trunkPaths: [
+      { d: `M ${x1} ${parent.y} L ${trunkX} ${parent.y}`, color: armColor },
+      { d: `M ${trunkX} ${spineTop} L ${trunkX} ${spineBot}`, color: armColor }
+    ],
+    stubPaths: kids.map(k => ({ d: `M ${trunkX} ${k.y} L ${k.x} ${k.y}`, color: k.bg || '#999' }))
+  };
 }
 
 function drawLine(layer, x1, y1, x2, y2, color) {
@@ -1837,8 +1864,8 @@ function buildExportSvg() {
       };
       const { left, right } = splitKidsBySide(parent, kids);
       if (exportLineStyle === 'taper') {
-        if (left.length) bracketChildTaperPaths(parent, left, -1).forEach(p => { addPath(p.thick, parent.bg, 6); addPath(p.thin, p.color, 2.5); });
-        if (right.length) bracketChildTaperPaths(parent, right, 1).forEach(p => { addPath(p.thick, parent.bg, 6); addPath(p.thin, p.color, 2.5); });
+        if (left.length) { const tp = bracketChildTaperPaths(parent, left, -1); tp.trunkPaths.forEach(p => addPath(p.d, p.color, 6)); tp.stubPaths.forEach(p => addPath(p.d, p.color, 2.5)); }
+        if (right.length) { const tp = bracketChildTaperPaths(parent, right, 1); tp.trunkPaths.forEach(p => addPath(p.d, p.color, 6)); tp.stubPaths.forEach(p => addPath(p.d, p.color, 2.5)); }
       } else {
         const radius = exportLineStyle === 'bracket-sharp' ? 0 : undefined;
         if (left.length) bracketChildPaths(parent, left, -1, radius).forEach(p => addPath(p.d, p.color, 2.5));
