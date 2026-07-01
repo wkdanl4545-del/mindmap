@@ -838,7 +838,6 @@ function render() {
     if (isHiddenByCollapse(n.id)) return;
     nodesLayer.appendChild(buildNodeEl(n));
   });
-  equalizeSiblingWidths();
 
   const lineStyle = App.current.lineStyle || 'elbow';
   if (lineStyle === 'bracket' || lineStyle === 'taper' || lineStyle === 'bracket-sharp') {
@@ -924,30 +923,6 @@ function measuredHalfWidth(nodeId) {
   return Math.max(25, label.length * ((n && n.fontSize) || 14) * 0.31 + 12);
 }
 
-// 같은 부모·같은 가지(좌/우)에 속한 형제 노드들의 너비를 가장 넓은 것에 맞춰 통일해서
-// 가로(바깥쪽) 가장자리도 한 줄로 정렬되어 보이게 한다.
-function equalizeSiblingWidths() {
-  const groups = {};
-  Object.values(App.current.nodes).forEach(n => {
-    if (!n.parentId || isHiddenByCollapse(n.id)) return;
-    const key = n.parentId + '_' + nodeHorizontalSide(n);
-    (groups[key] = groups[key] || []).push(n.id);
-  });
-  Object.values(groups).forEach(ids => {
-    if (ids.length < 2) return;
-    let maxW = 0;
-    ids.forEach(id => {
-      const el = document.querySelector(`.mm-node[data-id="${id}"]`);
-      if (el && el.offsetWidth > maxW) maxW = el.offsetWidth;
-    });
-    if (maxW > 0) {
-      ids.forEach(id => {
-        const el = document.querySelector(`.mm-node[data-id="${id}"]`);
-        if (el) el.style.width = maxW + 'px';
-      });
-    }
-  });
-}
 
 function bracketChildPaths(parent, kids, dir, radius) {
   const parentHalf = measuredHalfWidth(parent.id);
