@@ -725,15 +725,7 @@ function nodeSide(parentId) {
     const rightCount = kids.length - leftCount;
     return rightCount <= leftCount ? 1 : -1;
   }
-  // 중간 노드가 드래그로 이동해도 방향이 뒤집히지 않도록
-  // 루트의 직계 자식까지 올라가서 방향을 결정
-  let n = getNode(parentId);
-  while (n.parentId && n.parentId !== App.current.rootId) {
-    const p = getNode(n.parentId);
-    if (!p) break;
-    n = p;
-  }
-  return n.x < root.x ? -1 : 1;
+  return getNode(parentId).x < root.x ? -1 : 1;
 }
 
 function isDescendant(ancestorId, candidateId) {
@@ -917,9 +909,10 @@ function connectorPath(x1, y1, x2, y2) {
 }
 
 function splitKidsBySide(parent, kids) {
+  const root = getNode(App.current.rootId);
   return {
-    left: kids.filter(k => k.x < parent.x),
-    right: kids.filter(k => k.x >= parent.x)
+    left: kids.filter(k => k.x < root.x),
+    right: kids.filter(k => k.x >= root.x)
   };
 }
 
