@@ -640,7 +640,12 @@ function addSiblingNode(nodeId) {
   snapshot();
   const parent = getNode(node.parentId);
   const id = uid();
-  App.current.nodes[id] = makeNode(id, node.parentId, { text: '새 노드', x: node.x, y: node.y + 64, bg: node.bg, shape: node.shape });
+  let sibX = node.x;
+  if (node.parentId === App.current.rootId) {
+    const dir = nodeSide(node.parentId);
+    sibX = parent.x + dir * (measuredHalfWidth(node.parentId) + 60);
+  }
+  App.current.nodes[id] = makeNode(id, node.parentId, { text: '새 노드', x: sibX, y: node.y + 64, bg: node.bg, shape: node.shape });
   const idx = parent.children.indexOf(nodeId);
   parent.children.splice(idx + 1, 0, id);
   App.selectedNodeId = id;
@@ -778,9 +783,16 @@ function autoArrange() {
   root.x = 0; root.y = 0;
   const kids = root.children.slice();
   const left = [], right = [];
-  kids.forEach(id => ((getNode(id).x < 0 ? left : right).push(id)));
+  kids.forEach(id => ((getNode(id).x < root.x ? left : right).push(id)));
+  // 모두 한쪽으로 몰려있으면 교대로 재배분
+  if (left.length === 0 || right.length === 0) {
+    left.length = 0; right.length = 0;
+    [...kids].sort((a, b) => getNode(a).y - getNode(b).y)
+             .forEach((id, i) => (i % 2 === 0 ? right : left).push(id));
+  }
   left.sort((a, b) => getNode(a).y - getNode(b).y);
   right.sort((a, b) => getNode(a).y - getNode(b).y);
+  const rootHalfW = measuredHalfWidth(App.current.rootId);
 
   function place(ids, dir) {
     const totalWeight = ids.reduce((s, id) => s + subtreeWeight(id, memo), 0) || 1;
@@ -793,7 +805,8 @@ function autoArrange() {
   }
   function placeSubtree(id, dir, depth, yCenter) {
     const n = getNode(id);
-    n.x = dir * depth * H_GAP * 2.1;
+    const baseX = depth * H_GAP * 2.1;
+    n.x = dir * (depth === 1 ? Math.max(baseX, rootHalfW + 60) : baseX);
     n.y = yCenter;
     if (n.collapsed || n.children.length === 0) return;
     const totalWeight = n.children.reduce((s, c) => s + subtreeWeight(c, memo), 0) || 1;
