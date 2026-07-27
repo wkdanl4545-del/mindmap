@@ -799,21 +799,28 @@ function autoArrange() {
     let cursor = -totalWeight * (NODE_H + V_GAP) / 2;
     ids.forEach(id => {
       const w = subtreeWeight(id, memo) * (NODE_H + V_GAP);
-      placeSubtree(id, dir, 1, cursor + w / 2);
+      placeSubtree(id, dir, 1, cursor + w / 2, root.x);
       cursor += w;
     });
   }
-  function placeSubtree(id, dir, depth, yCenter) {
+  function placeSubtree(id, dir, depth, yCenter, parentX) {
     const n = getNode(id);
     const baseX = depth * H_GAP * 2.1;
-    n.x = dir * (depth === 1 ? Math.max(baseX, rootHalfW + 60) : baseX);
+    if (depth === 1) {
+      n.x = dir * Math.max(baseX, rootHalfW + H_GAP);
+    } else {
+      // 부모 노드의 실제 너비를 고려해 자식이 부모 바깥에 배치되도록 함
+      const parentHalf = measuredHalfWidth(n.parentId);
+      const parentFarEdge = parentX + dir * parentHalf * 2;
+      n.x = dir * Math.max(baseX, Math.abs(parentFarEdge) + H_GAP);
+    }
     n.y = yCenter;
     if (n.collapsed || n.children.length === 0) return;
     const totalWeight = n.children.reduce((s, c) => s + subtreeWeight(c, memo), 0) || 1;
     let cursor = yCenter - totalWeight * (NODE_H + V_GAP) / 2;
     n.children.forEach(cid => {
       const w = subtreeWeight(cid, memo) * (NODE_H + V_GAP);
-      placeSubtree(cid, dir, depth + 1, cursor + w / 2);
+      placeSubtree(cid, dir, depth + 1, cursor + w / 2, n.x);
       cursor += w;
     });
   }
