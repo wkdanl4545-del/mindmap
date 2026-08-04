@@ -832,6 +832,7 @@ function autoArrange() {
   floating.forEach((n, i) => { n.x = (i - floating.length / 2) * 200; n.y = 320; });
 
   render();
+  fitView();
   persistCurrentProject();
 }
 
@@ -1472,6 +1473,41 @@ function updateZoomTransform() {
   document.getElementById('zoom-level').textContent = Math.round(App.zoom * 100) + '%';
 }
 
+function fitView() {
+  if (!App.current) return;
+  const nodes = Object.values(App.current.nodes);
+  if (!nodes.length) return;
+
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  nodes.forEach(n => {
+    const el = document.getElementById('node-' + n.id);
+    const w = el ? el.offsetWidth : 120;
+    const h = el ? el.offsetHeight : 40;
+    const side = nodeHorizontalSide(n);
+    const left  = side === 'left'   ? n.x - w     : side === 'center' ? n.x - w / 2 : n.x;
+    const right = side === 'right'  ? n.x + w     : side === 'center' ? n.x + w / 2 : n.x;
+    minX = Math.min(minX, left);
+    maxX = Math.max(maxX, right);
+    minY = Math.min(minY, n.y - h / 2);
+    maxY = Math.max(maxY, n.y + h / 2);
+  });
+
+  const PAD = 60;
+  const toolbarH = document.getElementById('toolbar')?.offsetHeight || 48;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight - toolbarH;
+  const contentW = maxX - minX || 1;
+  const contentH = maxY - minY || 1;
+
+  const newZoom = Math.min((vw - PAD * 2) / contentW, (vh - PAD * 2) / contentH, 2.5);
+  App.zoom = Math.max(0.2, newZoom);
+  App.pan = {
+    x: vw / 2 - App.zoom * (minX + maxX) / 2,
+    y: toolbarH + vh / 2 - App.zoom * (minY + maxY) / 2,
+  };
+  updateZoomTransform();
+}
+
 // ===================== 컨텍스트 메뉴 (우클릭 / 롱프레스) =====================
 
 function closeContextMenu() {
@@ -1757,7 +1793,7 @@ document.addEventListener('click', (e) => {
 
 document.getElementById('btn-zoom-in').addEventListener('click', () => { App.zoom = Math.min(2.5, App.zoom + 0.1); updateZoomTransform(); });
 document.getElementById('btn-zoom-out').addEventListener('click', () => { App.zoom = Math.max(0.2, App.zoom - 0.1); updateZoomTransform(); });
-document.getElementById('btn-zoom-reset').addEventListener('click', () => { App.zoom = 1; App.pan = { x: window.innerWidth/2, y: window.innerHeight/2 - 40 }; updateZoomTransform(); });
+document.getElementById('btn-zoom-reset').addEventListener('click', fitView);
 
 document.getElementById('btn-new-project').addEventListener('click', () => {
   const name = prompt('새 마인드맵 이름을 입력하세요', '새 마인드맵');
